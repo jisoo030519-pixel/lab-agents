@@ -1259,10 +1259,11 @@ function renderLeave(){
 function factSheet(){
   const L = [`오늘은 ${DATA.today} 입니다. 아래는 ${DATA.lab}의 일정 자료입니다.`, ""];
   const dd = iso => { const n = dayDiff(iso); return n === 0 ? "오늘" : (n > 0 ? `D-${n}` : `${-n}일 지남`); };
+  const D = iso => `${iso} ${fmtDate(iso)}`;
 
   L.push("[학회 마감·행사]");
   (DATA.deadlines || []).forEach(d => L.push(
-    `- ${d.due || "날짜미정"} (${d.due ? dd(d.due) : "미정"}) ${d.society} ${d.event} — ${DUE_LABEL[d.kind] || d.kind}${d.note ? ` (${d.note})` : ""}`));
+    `- ${d.due ? D(d.due) : "날짜미정"} (${d.due ? dd(d.due) : "미정"}) ${d.society} ${d.event} — ${DUE_LABEL[d.kind] || d.kind}${d.note ? ` (${d.note})` : ""}`));
 
   L.push("", "[우리 랩 발표] (제1저자 기준)");
   (DATA.sessions || []).forEach(s => L.push(
@@ -1286,7 +1287,7 @@ function factSheet(){
     const ls = allLeaves();
     if (ls.length){
       L.push("등록된 연차:");
-      ls.forEach(l => L.push(`- ${l.date} ${l.name} ${l.half ? "반차" : "연차"}${l.note ? ` (${l.note})` : ""}`));
+      ls.forEach(l => L.push(`- ${D(l.date)} ${l.name} ${l.half ? "반차" : "연차"}${l.note ? ` (${l.note})` : ""}`));
     }
     L.push("※ 날짜를 모르는 기존 사용분이 있어 캘린더에는 안 뜨지만 '사용'에는 포함돼 있습니다.");
   }
@@ -1309,6 +1310,10 @@ const RULES = `당신은 위 연구실의 일정 비서입니다. 묻는 말에 
 - 그 외 일정(미팅·마감·할 일) → add_event
 - 날짜와 시각은 들은 대로 넘기면 됩니다. "9/20", "9월 20일", "오후 2시" 다 알아듣습니다.
   연도를 안 말하면 ${DATA.today.slice(0,4)}년입니다.
+- **이 연구실은 종일 연차만 씁니다. 반차는 없습니다.** 종일인지 반차인지 되묻지 말고 바로 등록하세요.
+- 이름과 날짜가 있으면 그것만으로 바로 등록하세요. 확인차 한 번 더 묻지 마세요.
+- **요일을 직접 계산하지 마세요.** 도구가 돌려준 dateLabel 과 자료에 적힌 요일을 그대로 쓰세요.
+  직접 세면 틀립니다.
 - 이름은 한글 그대로 넘기세요. 영문으로 바꾸지 마세요.
 - 누구 것인지 안 밝히면 되묻고, 함부로 정하지 마세요.
 - 등록에 성공하면 무엇이 언제로 등록됐는지, 남은 연차가 몇 일이 됐는지 한 줄로 알려주세요.
@@ -1331,6 +1336,10 @@ let store = null, canWrite = false;
 const logEl = () => document.getElementById("log");
 
 /* ---------- 저장소 (등록한 일정이 여기 남는다) ---------- */
+/* 요일은 절대 LLM 이 계산하게 두지 않는다. 실제로 9/20(일)을 (토)라고 답한 일이 있었다. */
+const dowOf = iso => WD[new Date(iso + "T00:00:00Z").getUTCDay()];
+const fmtDate = iso => `${+iso.slice(5,7)}/${+iso.slice(8,10)}(${dowOf(iso)})`;
+
 /* 사람이 쓰는 여러 날짜 표기를 받아준다 — "9/20", "9월 20일", "2026.09.20" 모두 같은 뜻이다 */
 const pad2 = n => String(n).padStart(2, "0");
 function checkDate(v){
@@ -1384,19 +1393,19 @@ function resolveName(v, names, what){
 }
 const checkLeavePerson = v => resolveName(v, leavePeople().map(p => p.name), "연차");
 
-async function dbAddLeave({name, date, half, note}){
+// 이 연구실은 종일 연차만 쓴다. 반차는 받지 않으므로 되묻지도 않는다.
+async function dbAddLeave({name, date, note}){
   const n = checkLeavePerson(name), d = checkDate(date);
   if (allLeaves().some(l => l.name === n && l.date === d))
-    throw new Error(`${n} 님은 ${d} 에 이미 연차가 등록돼 있습니다`);
+    throw new Error(`${n} 님은 ${fmtDate(d)} 에 이미 연차가 등록돼 있습니다`);
   const p = leavePeople().find(x => x.name === n);
-  const cost = half ? 0.5 : 1;
-  if (p && p.left < cost)
+  if (p && p.left < 1)
     throw new Error(`${n} 님의 남은 연차가 ${p.left}일이라 등록할 수 없습니다`);
   // 문서 id 는 영문·숫자와 _ - . ~ : @ + 만 쓸 수 있다. 한글 이름을 id 에 넣으면
   // 경로 문법 위반으로 TypeError 가 난다 — 자동 id 를 받고 이름은 본문에만 둔다.
-  const rec = {name:n, date:d, half:!!half, note:String(note || ""), at:new Date().toISOString()};
+  const rec = {name:n, date:d, half:false, note:String(note || ""), at:new Date().toISOString()};
   await store.collection("leaves").add(rec);
-  return {ok:true, ...rec, left: p ? p.left - cost : null};
+  return {ok:true, ...rec, dateLabel: fmtDate(d), left: p ? p.left - 1 : null};
 }
 
 async function dbCancelLeave({name, date}){
@@ -1408,7 +1417,8 @@ async function dbCancelLeave({name, date}){
     throw new Error(`${d} 에 ${n} 님의 연차 기록이 없습니다`);
   }
   await store.collection("leaves").doc(mine.id).delete();
-  return {ok:true, cancelled:{name:n, date:d}};
+  return {ok:true, cancelled:{name:n, date:d}, dateLabel: fmtDate(d),
+          left: (leavePeople().find(x => x.name === n) || {}).left + 1};
 }
 
 async function dbAddEvent({title, date, time, member, kind, note}){
@@ -1422,7 +1432,7 @@ async function dbAddEvent({title, date, time, member, kind, note}){
   const rec = {title:t, date:d, time:tm, member:who, kind:String(kind || "etc"),
                note:String(note || ""), at:new Date().toISOString()};
   const ref = await store.collection("events").add(rec);
-  return {ok:true, id:ref.id, ...rec};
+  return {ok:true, id:ref.id, ...rec, dateLabel: fmtDate(d)};
 }
 
 function applySnapshots(){ buildAll(); render(); }
@@ -1481,12 +1491,11 @@ const counted = fn => (input) => { toolRan++; return fn(input); };
 const TOOLS = [
   {
     name: "add_leave",
-    description: "연구실 구성원의 연차(또는 반차)를 등록한다. 등록하면 캘린더에 뜨고 남은 연차가 줄어든다. "
-      + "성공하면 등록 내용과 남은 연차를 돌려주고, 실패하면 이유를 오류로 돌려준다.",
+    description: "연구실 구성원의 종일 연차를 등록한다. 이 연구실에는 반차가 없으므로 종일/반차를 되물을 필요가 없다. "
+      + "등록하면 캘린더에 뜨고 남은 연차가 줄어든다. 결과의 dateLabel 은 요일까지 붙은 표기이니 그대로 쓰면 된다.",
     inputSchema: {type:"object", properties:{
       name:{type:"string", description:"연차 관리 대상자 이름 (한글)"},
-      date:{type:"string", description:"YYYY-MM-DD"},
-      half:{type:"boolean", description:"반차면 true, 종일 연차면 false 또는 생략"},
+      date:{type:"string", description:"YYYY-MM-DD 또는 9/20 같은 표기"},
       note:{type:"string", description:"사유 등 메모. 없으면 생략"}}, required:["name","date"]},
     execute: counted(dbAddLeave),
   },
