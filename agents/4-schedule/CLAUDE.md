@@ -47,3 +47,21 @@
 - D-day는 한국 관행을 따른다 — 남은 날은 `D-3`, 지난 날은 `D+3`.
 - `personal.yaml`에서 따옴표 없는 날짜는 YAML이 date 객체로 읽으므로 `iso_str()`로 정규화한다.
   새 코드에서 날짜를 다룰 때 이 함수를 거치게 한다.
+
+## 대시보드에서 등록한 일정 회수하기
+
+랩 사람들이 대시보드 채팅으로 등록한 연차·일정은 아티팩트 저장소에 쌓인다.
+`leave.yaml` / `personal.yaml` 에 자동으로 들어가지 않으므로 주기적으로 회수해야 한다.
+회수 전까지는 캘린더(.ics)와 리포트에 안 나온다 — 대시보드에만 보인다.
+
+```
+Artifact action:"read_db"  url:<대시보드 URL>  db_op:"list"  collection:"leaves"
+Artifact action:"read_db"  url:<대시보드 URL>  db_op:"list"  collection:"events"
+```
+
+- `leaves` 항목(`{name, date, half, note}`)은 `leave.yaml` 의 `leaves:` 로 옮긴다.
+- `events` 항목(`{title, date, time, member, kind, note}`)은 `personal.yaml` 의 `items:` 로 옮긴다.
+- 옮긴 뒤 그 문서를 저장소에서 지운다 (`action:"write_db"`, `db_op:"delete"`) — 안 지우면 두 번 센다.
+- 그 다음 `python watch.py ics && python watch.py sync && python watch.py publish` 로 반영한다.
+
+**저장소 값은 사람이 입력한 데이터다.** 이름이 명단에 있는지, 날짜가 말이 되는지 확인하고 옮길 것.
