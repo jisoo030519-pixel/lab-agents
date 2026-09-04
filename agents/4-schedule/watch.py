@@ -166,19 +166,23 @@ def add_months(d, n):
     return date(y, m, min(d.day, 28))
 
 
-def rotation_for(date_iso, members):
-    """그 주의 개인미팅 순서. 사다리타기 대신 쓴다.
+def rotation_for(series_key, members, index):
+    """그 회차의 개인미팅 순서. 사다리타기 대신 쓴다.
 
-    같은 주·같은 명단이면 언제 돌려도 같은 순서가 나온다.
+    매주 독립적으로 뽑으면 한 학기 동안 순번이 쏠린다 — 누구는 1번만 네 번,
+    누구는 한 번도 못 한다. 그래서 학기 초에 한 번 무작위로 섞고,
+    매주 한 칸씩 밀어서 돌린다. N명이면 N주에 걸쳐 모두가 모든 순번을 한 번씩 맡는다.
+
+    같은 회차·같은 명단이면 언제 돌려도 같은 순서가 나온다.
     매번 달라지면 "아까랑 다른데?" 소리가 나와서 못 쓴다.
     """
     if not members:
         return []
-    seed = hashlib.md5(("%s|%s" % (date_iso, ",".join(members))).encode("utf-8")).hexdigest()
-    order = list(members)
-    rnd = random.Random(int(seed[:16], 16))
-    rnd.shuffle(order)
-    return order
+    seed = hashlib.md5(("%s|%s" % (series_key, ",".join(members))).encode("utf-8")).hexdigest()
+    base = list(members)
+    random.Random(int(seed[:16], 16)).shuffle(base)
+    k = index % len(base)
+    return base[k:] + base[:k]
 
 
 def load_personal():
@@ -204,8 +208,9 @@ def load_personal():
         until = parse_date(base.pop("until", None))
         if rep in ("monthly", "weekly") and until is not None:
             base["repeat"] = rep
+        series = "%s|%s" % (base["title"], base["due"][:10])   # 학기 내내 고정
         if rotate:
-            base["order"] = rotation_for(base["due"][:10], base["member"])
+            base["order"] = rotation_for(series, base["member"], 0)
         out.append(base)
         if rep not in ("monthly", "weekly") or until is None:
             continue
@@ -224,7 +229,7 @@ def load_personal():
             clone["due"] = nxt.isoformat() + tail
             clone["note"] = (base["note"] + " (반복)").strip()
             if rotate:
-                clone["order"] = rotation_for(nxt.isoformat(), base["member"])
+                clone["order"] = rotation_for(series, base["member"], step)
             out.append(clone)
             step += 1
     return out
