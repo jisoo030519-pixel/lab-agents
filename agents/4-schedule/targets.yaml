@@ -1,0 +1,38 @@
+# 감시 대상 학회 목록
+#
+# 여기에 학회를 추가/삭제하는 것만으로 에이전트 동작이 바뀝니다.
+#
+#   name    : 학회 이름 (리포트에 표시)
+#   url     : 확인할 페이지. 학술대회 공지/일정 페이지가 가장 좋습니다.
+#             모르면 홈페이지 주소만 넣어도 에이전트가 알아서 찾아 들어갑니다.
+#   enabled : false 로 두면 이번 실행에서 건너뜁니다.
+#   watch   : 관심 있는 마감 종류 (abstract/full_paper/earlybird/registration/camera_ready/event)
+#   note    : 에이전트에게 주는 힌트 (예: "포스터 세션만", "학생 등록비만")
+
+targets:
+  - name: 한국화학공학회
+    url: https://www.kiche.or.kr/conference/introduce
+    enabled: true
+    watch: [abstract, earlybird, registration, event]
+    note: >-
+      봄/가을 학술대회 2회. 2026 가을은 10/6~8 부산 BEXCO.
+      초록 마감이 핵심. 공지사항(/news/announce)도 같이 확인.
+
+  - name: NAT
+    url: https://nat2026.kr/
+    enabled: true
+    watch: [abstract, camera_ready, earlybird, registration, event]
+    note: >-
+      Nuclear Analytical Techniques. 한국원자력학회·한국방사선학회·KAERI 공동 주최.
+      NAT 2026 = 제7회, 9/6~10 서울 aT센터. 초록 마감이 두 번 연장된 이력 있음
+      (6/12 → 6/26 → 7/10) — 연장 공지를 항상 확인할 것.
+
+  - name: ICCAS
+    url: https://2026.iccas.org/
+    enabled: true
+    watch: [full_paper, camera_ready, earlybird, registration, event]
+    note: >-
+      International Conference on Control, Automation and Systems (제어로봇시스템학회).
+      ICCAS 2026 = 제26회, 10/27~30 삿포로 Hotel Emisia.
+      ICCAS 본 학회와 IJCAS 저널 동시 투고 트랙이 따로 있음 — 마감이 다르므로 구분해서 기록.
+      important dates 페이지: /authors-guideline-for-initial-submission/

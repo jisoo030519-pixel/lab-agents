@@ -1,0 +1,1361 @@
+<title>랩 학회 일정판</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&display=swap">
+<style>
+:root{
+  --ground:#FAFBFD; --surface:#FFFFFF; --surface-2:#F2F4F8;
+  --ink:#171A21; --ink-2:#4A5265; --ink-3:#7C8598;
+  --line:#E1E5EC; --line-2:#CDD3DE;
+  --accent:#2E5599; --accent-soft:#E7EDF9; --accent-ink:#2E5599;
+  --crit:#B33A34; --crit-soft:#FBEAE8;
+  --warn:#9A6410; --warn-soft:#FBF1E0;
+  --calm:#2E6B52; --calm-soft:#E4F0EA;
+  --shadow:0 1px 2px rgba(23,26,33,.05), 0 8px 24px -16px rgba(23,26,33,.25);
+  --r:10px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#121419; --surface:#191C23; --surface-2:#20242D;
+    --ink:#E9ECF3; --ink-2:#A8B0C0; --ink-3:#79808F;
+    --line:#2A2F3A; --line-2:#3A4150;
+    --accent:#7BA0E4; --accent-soft:#1E2A40; --accent-ink:#9DBAF0;
+    --crit:#E88079; --crit-soft:#33201E; --warn:#DCA74E; --warn-soft:#2E2515;
+    --calm:#79C0A0; --calm-soft:#172A22;
+    --shadow:0 1px 2px rgba(0,0,0,.35), 0 8px 24px -16px rgba(0,0,0,.8);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#121419; --surface:#191C23; --surface-2:#20242D;
+  --ink:#E9ECF3; --ink-2:#A8B0C0; --ink-3:#79808F;
+  --line:#2A2F3A; --line-2:#3A4150;
+  --accent:#7BA0E4; --accent-soft:#1E2A40; --accent-ink:#9DBAF0;
+  --crit:#E88079; --crit-soft:#33201E; --warn:#DCA74E; --warn-soft:#2E2515;
+  --calm:#79C0A0; --calm-soft:#172A22;
+  --shadow:0 1px 2px rgba(0,0,0,.35), 0 8px 24px -16px rgba(0,0,0,.8);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:"IBM Plex Sans KR",-apple-system,"Malgun Gothic",sans-serif;
+  font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:"IBM Plex Mono","IBM Plex Sans KR",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+.wrap{max-width:1120px; margin:0 auto; padding:28px 20px 72px}
+
+/* ---------- header ---------- */
+header{display:flex; flex-wrap:wrap; align-items:baseline; gap:10px 16px; margin-bottom:6px}
+h1{font-size:26px; font-weight:600; letter-spacing:-.02em; margin:0}
+.stamp{font-size:11.5px; color:var(--ink-3); letter-spacing:.06em; text-transform:uppercase}
+.demo{
+  font-size:11px; font-weight:600; letter-spacing:.05em;
+  background:var(--warn-soft); color:var(--warn);
+  padding:3px 9px; border-radius:99px; border:1px solid color-mix(in srgb,var(--warn) 30%,transparent);
+}
+
+/* ---------- filter ---------- */
+.filters{display:flex; flex-wrap:wrap; gap:7px; margin:20px 0 22px; padding-bottom:20px; border-bottom:1px solid var(--line)}
+.chip{
+  font:inherit; font-size:13.5px; font-weight:500;
+  padding:6px 14px; border-radius:99px; cursor:pointer;
+  background:var(--surface); color:var(--ink-2);
+  border:1px solid var(--line-2); transition:background .12s, color .12s, border-color .12s;
+}
+.chip:hover{border-color:var(--accent); color:var(--accent-ink)}
+.chip[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:var(--surface)}
+.chip:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+/* ---------- summary ---------- */
+.tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(148px,1fr)); gap:12px; margin-bottom:26px}
+.tile{background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:14px 16px; box-shadow:var(--shadow)}
+.tile .n{font-size:29px; font-weight:600; line-height:1.1; letter-spacing:-.02em}
+.tile .k{font-size:12.5px; color:var(--ink-3); margin-top:3px}
+.tile.crit .n{color:var(--crit)} .tile.warn .n{color:var(--warn)} .tile.acc .n{color:var(--accent-ink)}
+
+/* ---------- 학기 정기 일정 ---------- */
+.weekly{
+  display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px;
+  background:var(--calm-soft); border:1px solid color-mix(in srgb,var(--calm) 28%,transparent);
+  border-radius:var(--r); padding:11px 14px; margin-bottom:26px; font-size:13px;
+}
+.weekly .lbl{font-size:11px; font-weight:600; letter-spacing:.06em; color:var(--calm); text-transform:uppercase}
+.weekly .slot{display:inline-flex; align-items:baseline; gap:6px; color:var(--ink-2)}
+.weekly .slot b{color:var(--calm); font-weight:600}
+.weekly .slot .tm{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-3)}
+.weekly .slot .who2{font-size:11.5px; color:var(--ink-3)}
+
+/* ---------- 연차 ---------- */
+.leave-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(158px,1fr)); gap:1px; background:var(--line)}
+.lv{background:var(--surface); padding:12px 14px}
+.lv .nm{font-size:13.5px; font-weight:600; margin-bottom:6px}
+.lv .num{display:flex; align-items:baseline; gap:4px}
+.lv .left{font-size:24px; font-weight:600; letter-spacing:-.02em; color:var(--calm)}
+.lv .of{font-size:12px; color:var(--ink-3)}
+.lv.low .left{color:var(--warn)} .lv.none .left{color:var(--crit)}
+.track{height:5px; border-radius:99px; background:var(--surface-2); margin-top:8px; overflow:hidden}
+.track i{display:block; height:100%; background:var(--calm); border-radius:99px}
+.lv.low .track i{background:var(--warn)} .lv.none .track i{background:var(--crit)}
+.lv .sub{font-size:11px; color:var(--ink-3); margin-top:5px}
+
+/* ---------- 채팅 ---------- */
+.chat{display:flex; flex-direction:column; height:420px}
+.log{flex:1; overflow-y:auto; padding:14px 16px; display:flex; flex-direction:column; gap:12px}
+.msg{max-width:88%; font-size:13.5px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere}
+.msg.me{align-self:flex-end; background:var(--accent); color:var(--surface); padding:8px 12px; border-radius:12px 12px 3px 12px}
+.msg.ai{align-self:flex-start; color:var(--ink)}
+.msg.err{align-self:flex-start; color:var(--crit); font-size:12.5px}
+.hint{color:var(--ink-3); font-size:12.5px; line-height:1.7}
+.hint b{display:block; color:var(--ink-2); font-weight:600; margin-bottom:4px; font-size:12px; letter-spacing:.04em; text-transform:uppercase}
+.hint button{
+  display:block; margin-top:5px; font:inherit; font-size:12.5px; text-align:left; cursor:pointer;
+  background:none; border:none; padding:0; color:var(--accent-ink); text-decoration:underline; text-underline-offset:2px;
+}
+.ask{display:flex; gap:8px; padding:12px 14px; border-top:1px solid var(--line)}
+.ask input{
+  flex:1; font:inherit; font-size:13.5px; padding:8px 12px; border-radius:8px;
+  border:1px solid var(--line-2); background:var(--surface); color:var(--ink);
+}
+.ask input:focus{outline:2px solid var(--accent); outline-offset:-1px; border-color:var(--accent)}
+.ask button{
+  font:inherit; font-size:13px; font-weight:500; padding:8px 15px; border-radius:8px; cursor:pointer;
+  background:var(--accent); color:var(--surface); border:1px solid var(--accent);
+}
+.ask button[disabled]{opacity:.45; cursor:default}
+.ask button.stop{background:var(--surface); color:var(--crit); border-color:var(--crit)}
+
+/* ---------- layout ---------- */
+.cols{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,380px); gap:26px; align-items:start}
+@media (max-width:860px){ .cols{grid-template-columns:1fr} }
+
+.panel{background:var(--surface); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow); overflow:hidden}
+.panel-hd{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 16px; border-bottom:1px solid var(--line)}
+.panel-hd h2{margin:0; font-size:14px; font-weight:600; letter-spacing:-.01em}
+.nav{display:flex; gap:4px}
+.nav button{
+  font:inherit; width:30px; height:30px; line-height:1; cursor:pointer;
+  background:var(--surface-2); border:1px solid var(--line); border-radius:7px; color:var(--ink-2);
+}
+.nav button:hover{border-color:var(--accent); color:var(--accent-ink)}
+.nav button:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.month{font-size:14px; font-weight:600; min-width:104px; text-align:center}
+
+/* ---------- calendar ---------- */
+.dow{display:grid; grid-template-columns:repeat(7,1fr); border-bottom:1px solid var(--line); background:var(--surface-2)}
+.dow div{padding:7px 0; text-align:center; font-size:11px; font-weight:600; letter-spacing:.08em; color:var(--ink-3)}
+.dow div:first-child{color:var(--crit)}
+.grid{display:grid; grid-template-columns:repeat(7,1fr)}
+.cell{
+  min-height:88px; padding:6px 7px 8px; border-right:1px solid var(--line); border-bottom:1px solid var(--line);
+  display:flex; flex-direction:column; gap:3px; background:var(--surface);
+}
+.cell:nth-child(7n){border-right:none}
+.cell.out{background:var(--surface-2)}
+.cell.out .dnum{color:var(--ink-3); opacity:.55}
+.dnum{font-size:12px; font-weight:500; color:var(--ink-2); align-self:flex-start; padding:1px 5px; border-radius:5px}
+.cell.today .dnum{background:var(--accent); color:#fff; font-weight:600}
+.ev{
+  font-size:11px; line-height:1.35; padding:2px 5px; border-radius:4px;
+  border-left:2.5px solid; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.ev.talk{background:var(--accent-soft); border-color:var(--accent); color:var(--accent-ink)}
+.ev.due{background:var(--crit-soft); border-color:var(--crit); color:var(--crit)}
+.ev.due.far{background:var(--surface-2); border-color:var(--line-2); color:var(--ink-2)}
+.ev.mine{background:var(--calm-soft); border-color:var(--calm); color:var(--calm)}
+.ev.leave{background:var(--warn-soft); border-color:var(--warn); color:var(--warn)}
+@media (max-width:600px){
+  .cell{min-height:62px; padding:4px 4px 6px}
+  .ev{font-size:0; padding:0; height:5px; border-left:none; border-radius:99px; background:var(--accent)}
+  .ev.due{background:var(--crit)} .ev.due.far{background:var(--line-2)}
+  .ev.mine{background:var(--calm)} .ev.leave{background:var(--warn)}
+}
+
+/* ---------- upcoming list ---------- */
+.list{display:flex; flex-direction:column}
+.item{display:grid; grid-template-columns:58px minmax(0,1fr); gap:12px; padding:12px 16px; border-bottom:1px solid var(--line); border-left:3px solid transparent}
+.item:last-child{border-bottom:none}
+.item.s-crit{border-left-color:var(--crit)}
+.item.s-warn{border-left-color:var(--warn)}
+.item.s-talk{border-left-color:var(--accent)}
+.item.s-calm{border-left-color:var(--line-2)}
+.dday{font-size:15px; font-weight:600; letter-spacing:-.02em; text-align:right; padding-top:1px}
+.item.s-crit .dday{color:var(--crit)} .item.s-warn .dday{color:var(--warn)}
+.item.s-talk .dday{color:var(--accent-ink)} .item.s-calm .dday{color:var(--ink-3)}
+.date{display:block; font-size:10.5px; font-weight:400; color:var(--ink-3); letter-spacing:0}
+.t{font-size:14px; font-weight:500; letter-spacing:-.01em}
+.meta{font-size:12px; color:var(--ink-3); margin-top:2px; display:flex; flex-wrap:wrap; gap:4px 8px; align-items:center}
+.who{font-weight:600; color:var(--accent-ink)}
+.tag{font-size:10.5px; font-weight:600; letter-spacing:.03em; padding:1px 6px; border-radius:4px; background:var(--surface-2); color:var(--ink-2); border:1px solid var(--line)}
+.note{font-size:11.5px; color:var(--warn); margin-top:3px}
+a{color:var(--accent-ink)}
+.empty{padding:26px 16px; text-align:center; color:var(--ink-3); font-size:13.5px}
+
+footer{margin-top:26px; padding-top:16px; border-top:1px solid var(--line); font-size:12.5px; color:var(--ink-3); line-height:1.7}
+footer code{font-family:"IBM Plex Mono",monospace; background:var(--surface-2); padding:1px 5px; border-radius:4px; color:var(--ink-2)}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1 id="labname">연구실 연구·학회 일정</h1>
+    <span class="stamp mono" id="stamp"></span>
+    <span class="demo" id="demo">명단 · 연구일정은 예시</span>
+  </header>
+
+  <div class="filters" id="filters"></div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="weekly" id="weekly" hidden></div>
+
+  <div class="cols">
+    <section class="panel">
+      <div class="panel-hd">
+        <h2>월별 일정</h2>
+        <div class="nav">
+          <button id="prev" aria-label="이전 달">‹</button>
+          <span class="month mono" id="month"></span>
+          <button id="next" aria-label="다음 달">›</button>
+        </div>
+      </div>
+      <div class="dow"><div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div></div>
+      <div class="grid" id="grid"></div>
+    </section>
+
+    <div style="display:flex; flex-direction:column; gap:26px">
+      <section class="panel" id="chatPanel" hidden>
+        <div class="panel-hd">
+          <h2>일정 물어보기</h2>
+          <span class="stamp" id="chatState"></span>
+        </div>
+        <div class="chat">
+          <div class="log" id="log"></div>
+          <form class="ask" id="askForm">
+            <input id="q" autocomplete="off" placeholder="예: 이승훈 남은 연차 며칠?">
+            <button type="submit" id="send">보내기</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-hd"><h2>다가오는 일정</h2></div>
+        <div class="list" id="list"></div>
+      </section>
+    </div>
+  </div>
+
+  <section class="panel" id="leavePanel" style="margin-top:26px" hidden>
+    <div class="panel-hd">
+      <h2>연차 현황</h2>
+      <span class="stamp mono" id="leaveYear"></span>
+    </div>
+    <div class="leave-grid" id="leaveGrid"></div>
+  </section>
+
+  <footer>
+    학회 마감은 학회 사이트에서, 발표 일정은 프로그램북에서 연구실 구성원 이름을 찾아
+    자동으로 수집됩니다. 논문·과제·세미나는 <code>personal.yaml</code> 에 적은 것입니다.
+    마감일이 바뀌면 <strong>변경됨</strong> 표시가 붙습니다.<br>
+    알림은 <code>calendars/이름.ics</code> 를 폰 캘린더에 넣으면 옵니다 —
+    마감 7일 전·1일 전, 발표 1일 전·1시간 전, 세미나 1시간 전.
+  </footer>
+</div>
+
+<script>
+const DATA = /*DATA*/{
+  "lab": "인천대 연구실",
+  "generated": "2026-09-04T17:30:34",
+  "today": "2026-09-04",
+  "members": [
+    "김종우",
+    "현지수",
+    "이승훈",
+    "안재현",
+    "이나경",
+    "오희진",
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현",
+    "김균영"
+  ],
+  "deadlines": [
+    {
+      "due": "2026-08-05",
+      "event": "2026 가을 총회 및 국제학술대회",
+      "first_seen": "2026-09-04",
+      "kind": "abstract",
+      "last_changed": "2026-09-04",
+      "last_seen": "2026-09-04",
+      "note": "접수기간 5/14~8/5 (종료)",
+      "society": "한국화학공학회",
+      "url": "https://www.kiche.or.kr/conference/introduce"
+    },
+    {
+      "due": "2026-08-07",
+      "event": "NAT 2026 (제7회 Nuclear Analytical Techniques)",
+      "first_seen": "2026-09-04",
+      "kind": "earlybird",
+      "last_changed": "2026-09-04",
+      "last_seen": "2026-09-04",
+      "note": "종료",
+      "society": "NAT",
+      "url": "https://nat2026.kr/"
+    },
+    {
+      "due": "2026-08-31",
+      "event": "ICCAS 2026 (제26회)",
+      "first_seen": "2026-09-04",
+      "kind": "camera_ready",
+      "last_changed": "2026-09-04",
+      "last_seen": "2026-09-04",
+      "note": "ICCAS 최종본. 종료",
+      "society": "ICCAS",
+      "url": "https://2026.iccas.org/authors-guideline-for-initial-submission/"
+    },
+    {
+      "due": "2026-09-04",
+      "event": "2026 가을 총회 및 국제학술대회",
+      "first_seen": "2026-09-04",
+      "kind": "earlybird",
+      "last_changed": "2026-09-04",
+      "last_seen": "2026-09-04",
+      "note": "학술대회안내 페이지 기준 사전등록 5/14~9/4 — 오늘 마감이므로 직접 확인 필요",
+      "society": "한국화학공학회",
+      "url": "https://www.kiche.or.kr/conference/registration"
+    },
+    {
+      "due": "2026-09-06",
+      "end": "2026-09-10",
+      "event": "NAT 2026 (제7회 Nuclear Analytical Techniques)",
+      "first_seen": "2026-09-04",
+      "kind": "event",
+      "last_changed": "2026-09-04",
+      "last_seen": "2026-09-04",
+      "note": "서울 aT센터",
+      "society": "NAT",
+      "url": "https://nat2026.kr/overview.html"
+    },
+    {
+      "due": "2026-09-30",
+      "event": "NAT 2026 (제7회 Nuclear Analytical Techniques)",
+      "first_seen": "2026-09-04",
+      "kind": "camera_ready",
+      "last_changed": "2026-09-04",
+      "last_seen": "2026-09-04",
+      "note": "Full paper 최종 제출",
+      "society": "NAT",
+      "url": "https://nat2026.kr/"
+    },
+    {
+      "due": "2026-10-06",
+      "end": "2026-10-08",
+      "event": "2026 가을 총회 및 국제학술대회",
+      "first_seen": "2026-09-04",
+      "kind": "event",
+      "last_changed": "2026-09-04",
+      "last_seen": "2026-09-04",
+      "note": "부산 BEXCO",
+      "society": "한국화학공학회",
+      "url": "https://www.kiche.or.kr/conference/introduce"
+    },
+    {
+      "due": "2026-10-27",
+      "end": "2026-10-30",
+      "event": "ICCAS 2026 (제26회)",
+      "first_seen": "2026-09-04",
+      "kind": "event",
+      "last_changed": "2026-09-04",
+      "last_seen": "2026-09-04",
+      "note": "삿포로 Hotel Emisia",
+      "society": "ICCAS",
+      "url": "https://2026.iccas.org/"
+    },
+    {
+      "due": "2026-10-31",
+      "event": "ICCAS 2026 IJCAS 동시투고 트랙",
+      "first_seen": "2026-09-04",
+      "kind": "camera_ready",
+      "last_changed": "2026-09-04",
+      "last_seen": "2026-09-04",
+      "note": "IJCAS 최종본. 채택 통보는 9/30 예정",
+      "society": "ICCAS",
+      "url": "https://2026.iccas.org/authors-guideline-for-initial-submission/"
+    }
+  ],
+  "sessions": [
+    {
+      "end": "2026-09-08T17:00",
+      "event": "NAT 2026 (제7회 Nuclear Analytical Techniques)",
+      "first_seen": "2026-09-04",
+      "kind": "poster",
+      "last_changed": "2026-09-04",
+      "last_seen": "2026-09-04",
+      "member": "이승훈",
+      "note": "TP_7",
+      "room": "aT센터 3F Foyer",
+      "session": "Poster Session 2 [TP_7]",
+      "society": "NAT",
+      "start": "2026-09-08T16:00",
+      "title": "Equation Oriented Pore Network Modeling and Microstructure Optimization of Vanadium Redox Flow Batteries"
+    },
+    {
+      "end": "2026-09-08T17:00",
+      "event": "NAT 2026 (제7회 Nuclear Analytical Techniques)",
+      "first_seen": "2026-09-04",
+      "kind": "poster",
+      "last_changed": "2026-09-04",
+      "last_seen": "2026-09-04",
+      "member": "현지수",
+      "note": "TP_8",
+      "room": "aT센터 3F Foyer",
+      "session": "Poster Session 2 [TP_8]",
+      "society": "NAT",
+      "start": "2026-09-08T16:00",
+      "title": "Equation-Oriented Model Based Techno-Economic Assessment on CIRCE Process"
+    },
+    {
+      "end": "2026-09-09T11:30",
+      "event": "NAT 2026 (제7회 Nuclear Analytical Techniques)",
+      "first_seen": "2026-09-04",
+      "kind": "chair",
+      "last_changed": "2026-09-04",
+      "last_seen": "2026-09-04",
+      "member": "김종우",
+      "note": "세션 전체 진행",
+      "room": "aT센터 Room D (Segyero 3)",
+      "session": "WD1",
+      "society": "NAT",
+      "start": "2026-09-09T09:30",
+      "title": "[WD1] Radiochemistry III: Isotope Separation & Analysis 좌장"
+    },
+    {
+      "end": "2026-10-06T13:36",
+      "event": "2026 가을 총회 및 국제학술대회",
+      "first_seen": "2026-09-04",
+      "kind": "oral",
+      "last_changed": "2026-09-04",
+      "last_seen": "2026-09-04",
+      "member": "김종우",
+      "note": "O공정화-2",
+      "room": "109호",
+      "session": "구두 발표(공정시스템 I)",
+      "society": "한국화학공학회",
+      "start": "2026-10-06T13:18",
+      "title": "강화학습 기반 공정 및 실험 설계 자동화"
+    },
+    {
+      "end": "2026-10-06T14:24",
+      "event": "2026 가을 총회 및 국제학술대회",
+      "first_seen": "2026-09-04",
+      "kind": "oral",
+      "last_changed": "2026-09-04",
+      "last_seen": "2026-09-04",
+      "member": "안재현",
+      "note": "O공정화-6. 우수 구두 발표상 후보",
+      "room": "109호",
+      "session": "구두 발표(공정시스템 I)",
+      "society": "한국화학공학회",
+      "start": "2026-10-06T14:14",
+      "title": "PointNet++을 활용한 환자 맞춤형 VA-ECMO 혈류 혼합 경계 영역 예측 필드 서로게이트 모델링"
+    },
+    {
+      "end": "2026-10-07T11:00",
+      "event": "2026 가을 총회 및 국제학술대회",
+      "first_seen": "2026-09-04",
+      "kind": "poster",
+      "last_changed": "2026-09-04",
+      "last_seen": "2026-09-04",
+      "member": "오희진",
+      "note": "P공정수-2. 우수 포스터 발표상 후보. 부착 08:00~09:30, 철거 11:00~12:00, 최소 40분 상주",
+      "room": "포스터장",
+      "session": "공정시스템 포스터",
+      "society": "한국화학공학회",
+      "start": "2026-10-07T09:30",
+      "title": "재생에너지 연계 Reversible Solid Oxide Cell(RSOC) 시스템의 안전 강화학습 기반 운전 스케줄링"
+    },
+    {
+      "end": "2026-10-07T11:00",
+      "event": "2026 가을 총회 및 국제학술대회",
+      "first_seen": "2026-09-04",
+      "kind": "poster",
+      "last_changed": "2026-09-04",
+      "last_seen": "2026-09-04",
+      "member": "이나경",
+      "note": "P공정수-45. 부착 08:00~09:30, 철거 11:00~12:00, 최소 40분 상주",
+      "room": "포스터장",
+      "session": "공정시스템 포스터",
+      "society": "한국화학공학회",
+      "start": "2026-10-07T09:30",
+      "title": "공정 인지형 Molecular GNN을 이용한 추출증류 엔트레이너 순위 예측"
+    }
+  ],
+  "personal": [
+    {
+      "title": "랩세미나",
+      "kind": "seminar",
+      "due": "2026-09-04T11:00",
+      "member": [],
+      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요",
+      "repeat": "weekly"
+    },
+    {
+      "title": "개인미팅",
+      "kind": "meeting",
+      "due": "2026-09-08",
+      "member": [],
+      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요",
+      "repeat": "weekly"
+    },
+    {
+      "title": "학부스터디",
+      "kind": "meeting",
+      "due": "2026-09-08T15:00",
+      "member": [
+        "김소윤",
+        "나승민",
+        "이영한",
+        "강서현"
+      ],
+      "note": "화 15:00~16:00. 학부생 대상",
+      "repeat": "weekly"
+    },
+    {
+      "title": "랩세미나",
+      "kind": "seminar",
+      "due": "2026-09-11T11:00",
+      "member": [],
+      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "개인미팅",
+      "kind": "meeting",
+      "due": "2026-09-15",
+      "member": [],
+      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "학부스터디",
+      "kind": "meeting",
+      "due": "2026-09-15T15:00",
+      "member": [
+        "김소윤",
+        "나승민",
+        "이영한",
+        "강서현"
+      ],
+      "note": "화 15:00~16:00. 학부생 대상 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "랩세미나",
+      "kind": "seminar",
+      "due": "2026-09-18T11:00",
+      "member": [],
+      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "개인미팅",
+      "kind": "meeting",
+      "due": "2026-09-22",
+      "member": [],
+      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "학부스터디",
+      "kind": "meeting",
+      "due": "2026-09-22T15:00",
+      "member": [
+        "김소윤",
+        "나승민",
+        "이영한",
+        "강서현"
+      ],
+      "note": "화 15:00~16:00. 학부생 대상 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "랩세미나",
+      "kind": "seminar",
+      "due": "2026-09-25T11:00",
+      "member": [],
+      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "개인미팅",
+      "kind": "meeting",
+      "due": "2026-09-29",
+      "member": [],
+      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "학부스터디",
+      "kind": "meeting",
+      "due": "2026-09-29T15:00",
+      "member": [
+        "김소윤",
+        "나승민",
+        "이영한",
+        "강서현"
+      ],
+      "note": "화 15:00~16:00. 학부생 대상 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "랩세미나",
+      "kind": "seminar",
+      "due": "2026-10-02T11:00",
+      "member": [],
+      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "개인미팅",
+      "kind": "meeting",
+      "due": "2026-10-06",
+      "member": [],
+      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "학부스터디",
+      "kind": "meeting",
+      "due": "2026-10-06T15:00",
+      "member": [
+        "김소윤",
+        "나승민",
+        "이영한",
+        "강서현"
+      ],
+      "note": "화 15:00~16:00. 학부생 대상 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "랩세미나",
+      "kind": "seminar",
+      "due": "2026-10-09T11:00",
+      "member": [],
+      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "개인미팅",
+      "kind": "meeting",
+      "due": "2026-10-13",
+      "member": [],
+      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "학부스터디",
+      "kind": "meeting",
+      "due": "2026-10-13T15:00",
+      "member": [
+        "김소윤",
+        "나승민",
+        "이영한",
+        "강서현"
+      ],
+      "note": "화 15:00~16:00. 학부생 대상 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "랩세미나",
+      "kind": "seminar",
+      "due": "2026-10-16T11:00",
+      "member": [],
+      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "개인미팅",
+      "kind": "meeting",
+      "due": "2026-10-20",
+      "member": [],
+      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "학부스터디",
+      "kind": "meeting",
+      "due": "2026-10-20T15:00",
+      "member": [
+        "김소윤",
+        "나승민",
+        "이영한",
+        "강서현"
+      ],
+      "note": "화 15:00~16:00. 학부생 대상 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "랩세미나",
+      "kind": "seminar",
+      "due": "2026-10-23T11:00",
+      "member": [],
+      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "개인미팅",
+      "kind": "meeting",
+      "due": "2026-10-27",
+      "member": [],
+      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "학부스터디",
+      "kind": "meeting",
+      "due": "2026-10-27T15:00",
+      "member": [
+        "김소윤",
+        "나승민",
+        "이영한",
+        "강서현"
+      ],
+      "note": "화 15:00~16:00. 학부생 대상 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "랩세미나",
+      "kind": "seminar",
+      "due": "2026-10-30T11:00",
+      "member": [],
+      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "개인미팅",
+      "kind": "meeting",
+      "due": "2026-11-03",
+      "member": [],
+      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "학부스터디",
+      "kind": "meeting",
+      "due": "2026-11-03T15:00",
+      "member": [
+        "김소윤",
+        "나승민",
+        "이영한",
+        "강서현"
+      ],
+      "note": "화 15:00~16:00. 학부생 대상 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "랩세미나",
+      "kind": "seminar",
+      "due": "2026-11-06T11:00",
+      "member": [],
+      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "개인미팅",
+      "kind": "meeting",
+      "due": "2026-11-10",
+      "member": [],
+      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "학부스터디",
+      "kind": "meeting",
+      "due": "2026-11-10T15:00",
+      "member": [
+        "김소윤",
+        "나승민",
+        "이영한",
+        "강서현"
+      ],
+      "note": "화 15:00~16:00. 학부생 대상 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "랩세미나",
+      "kind": "seminar",
+      "due": "2026-11-13T11:00",
+      "member": [],
+      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "개인미팅",
+      "kind": "meeting",
+      "due": "2026-11-17",
+      "member": [],
+      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "학부스터디",
+      "kind": "meeting",
+      "due": "2026-11-17T15:00",
+      "member": [
+        "김소윤",
+        "나승민",
+        "이영한",
+        "강서현"
+      ],
+      "note": "화 15:00~16:00. 학부생 대상 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "랩세미나",
+      "kind": "seminar",
+      "due": "2026-11-20T11:00",
+      "member": [],
+      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "개인미팅",
+      "kind": "meeting",
+      "due": "2026-11-24",
+      "member": [],
+      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "학부스터디",
+      "kind": "meeting",
+      "due": "2026-11-24T15:00",
+      "member": [
+        "김소윤",
+        "나승민",
+        "이영한",
+        "강서현"
+      ],
+      "note": "화 15:00~16:00. 학부생 대상 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "랩세미나",
+      "kind": "seminar",
+      "due": "2026-11-27T11:00",
+      "member": [],
+      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "개인미팅",
+      "kind": "meeting",
+      "due": "2026-12-01",
+      "member": [],
+      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "학부스터디",
+      "kind": "meeting",
+      "due": "2026-12-01T15:00",
+      "member": [
+        "김소윤",
+        "나승민",
+        "이영한",
+        "강서현"
+      ],
+      "note": "화 15:00~16:00. 학부생 대상 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "랩세미나",
+      "kind": "seminar",
+      "due": "2026-12-04T11:00",
+      "member": [],
+      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "개인미팅",
+      "kind": "meeting",
+      "due": "2026-12-08",
+      "member": [],
+      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "학부스터디",
+      "kind": "meeting",
+      "due": "2026-12-08T15:00",
+      "member": [
+        "김소윤",
+        "나승민",
+        "이영한",
+        "강서현"
+      ],
+      "note": "화 15:00~16:00. 학부생 대상 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "랩세미나",
+      "kind": "seminar",
+      "due": "2026-12-11T11:00",
+      "member": [],
+      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "개인미팅",
+      "kind": "meeting",
+      "due": "2026-12-15",
+      "member": [],
+      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "학부스터디",
+      "kind": "meeting",
+      "due": "2026-12-15T15:00",
+      "member": [
+        "김소윤",
+        "나승민",
+        "이영한",
+        "강서현"
+      ],
+      "note": "화 15:00~16:00. 학부생 대상 (반복)",
+      "repeat": "weekly"
+    },
+    {
+      "title": "랩세미나",
+      "kind": "seminar",
+      "due": "2026-12-18T11:00",
+      "member": [],
+      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+      "repeat": "weekly"
+    }
+  ],
+  "leave": {
+    "year": 2026,
+    "people": [
+      {
+        "name": "이승훈",
+        "total": 19.0,
+        "used": 3.0,
+        "left": 16.0,
+        "used_before": {
+          "2026-01": 2.0,
+          "2026-02": 1.0
+        },
+        "dated": []
+      },
+      {
+        "name": "안재현",
+        "total": 27.0,
+        "used": 2.0,
+        "left": 25.0,
+        "used_before": {
+          "2026-02": 1.0,
+          "2026-07": 1.0
+        },
+        "dated": []
+      },
+      {
+        "name": "이나경",
+        "total": 16.0,
+        "used": 5.0,
+        "left": 11.0,
+        "used_before": {
+          "2026-02": 5.0
+        },
+        "dated": []
+      },
+      {
+        "name": "오희진",
+        "total": 25.0,
+        "used": 4.0,
+        "left": 21.0,
+        "used_before": {
+          "2026-01": 1.0,
+          "2026-06": 1.0,
+          "2026-08": 2.0
+        },
+        "dated": []
+      },
+      {
+        "name": "현지수",
+        "total": 30.0,
+        "used": 6.0,
+        "left": 24.0,
+        "used_before": {
+          "2026-05": 2.0,
+          "2026-06": 1.0,
+          "2026-08": 3.0
+        },
+        "dated": []
+      }
+    ],
+    "leaves": []
+  }
+}/*/DATA*/;
+
+const DUE_LABEL = {abstract:"초록 마감", full_paper:"논문 마감", earlybird:"사전등록 마감",
+  registration:"등록 마감", camera_ready:"최종본 마감", event:"행사 개최"};
+const TALK_LABEL = {oral:"구두발표", poster:"포스터", invited:"초청강연", keynote:"기조강연", chair:"좌장"};
+const MINE_LABEL = {revision:"논문 수정본", submission:"논문 투고", review:"리뷰", report:"보고서",
+  proposal:"제안서", seminar:"세미나", meeting:"미팅", etc:"기타"};
+
+const TODAY = new Date(DATA.today + "T00:00:00");
+const key = d => d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+const dayDiff = iso => Math.round((new Date(iso.slice(0,10)+"T00:00:00") - TODAY) / 86400000);
+
+/* 마감과 발표를 하나의 타임라인으로 합친다 */
+const EVENTS = [
+  ...DATA.deadlines.filter(d => d.due).map(d => ({
+    type:"due", date:d.due.slice(0,10), time:null, member:null,
+    title:`${d.society} ${d.event}`, kindLabel:DUE_LABEL[d.kind] || d.kind,
+    room:"", note:d.note, changedFrom:d.prev_due || null, url:d.url
+  })),
+  ...DATA.sessions.filter(s => s.start).map(s => ({
+    type:"talk", date:s.start.slice(0,10), time:(s.start.length>10 ? s.start.slice(11,16) : null),
+    member:s.member, title:s.title, kindLabel:TALK_LABEL[s.kind] || s.kind,
+    room:s.room, note:s.note, changedFrom:s.prev_start || null,
+    sub:`${s.society} ${s.event}` + (s.session ? " · " + s.session : "")
+  })),
+  ...(DATA.personal || []).filter(p => p.due).map(p => ({
+    type:"mine", date:p.due.slice(0,10), time:(p.due.length>10 ? p.due.slice(11,16) : null),
+    member:p.member || [], title:p.title, kindLabel:MINE_LABEL[p.kind] || p.kind,
+    room:"", note:p.note, changedFrom:null, sub:"연구 일정", repeat:p.repeat || ""
+  })),
+  ...((DATA.leave && DATA.leave.leaves) || []).map(l => ({
+    type:"leave", date:l.date, time:null, member:[l.name],
+    title:l.name + (l.half ? " 반차" : " 연차"),
+    kindLabel:(l.half ? "반차" : "연차"),
+    room:"", note:l.note || "", changedFrom:null, sub:"연차", repeat:""
+  }))
+].sort((a,b) => a.date.localeCompare(b.date) || (a.time||"").localeCompare(b.time||""));
+
+const WD = "일월화수목금토";
+const WEEKLY = (() => {
+  const seen = new Map();
+  EVENTS.filter(e => e.repeat === "weekly").forEach(e => {
+    const wd = new Date(e.date + "T00:00:00").getDay();
+    const k = wd + "|" + (e.time || "") + "|" + e.title;
+    if (!seen.has(k)) seen.set(k, {wd, time:e.time, title:e.title,
+      who: Array.isArray(e.member) && e.member.length ? e.member.join(", ") : ""});
+  });
+  return [...seen.values()].sort((a,b) => a.wd - b.wd || (a.time||"").localeCompare(b.time||""));
+})();
+const routine = e => e.repeat === "weekly";
+
+const UNDATED = [
+  ...DATA.deadlines.filter(d => !d.due).map(d => ({type:"due", title:`${d.society} ${d.event}`,
+    kindLabel:DUE_LABEL[d.kind] || d.kind, note:d.note})),
+  ...DATA.sessions.filter(s => !s.start).map(s => ({type:"talk", title:s.title, member:s.member,
+    kindLabel:TALK_LABEL[s.kind] || s.kind, note:s.note}))
+];
+
+let filter = null;                       // null = 전체
+let cursor = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+
+// 연구 일정의 member 는 참석자 배열(빈 배열 = 랩 공통), 발표의 member 는 발표자 한 명.
+const forMember = (e, f) => Array.isArray(e.member)
+  ? (e.member.length === 0 || e.member.includes(f))
+  : (!e.member || e.member === f);
+const visible = () => EVENTS.filter(e => !filter || e.type === "due" || forMember(e, filter));
+const severity = e => e.type === "talk" ? "talk"
+  : (dayDiff(e.date) < 0 ? "calm" : dayDiff(e.date) <= 7 ? "crit" : dayDiff(e.date) <= 30 ? "warn" : "calm");
+
+/* ---------- 필터 칩 ---------- */
+function renderFilters(){
+  const box = document.getElementById("filters");
+  box.innerHTML = "";
+  const mk = (label, val) => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.textContent = label;
+    b.setAttribute("aria-pressed", String(filter === val));
+    b.onclick = () => { filter = val; render(); };
+    box.appendChild(b);
+  };
+  mk("전체", null);
+  DATA.members.forEach(m => mk(m, m));
+}
+
+/* ---------- 요약 ---------- */
+function renderTiles(){
+  const ev = visible();
+  const todo = e => e.type !== "talk" && !routine(e) && dayDiff(e.date) >= 0;
+  const soon = ev.filter(e => todo(e) && dayDiff(e.date) <= 7).length;
+  const mid  = ev.filter(e => todo(e) && dayDiff(e.date) > 7 && dayDiff(e.date) <= 30).length;
+  const talks= ev.filter(e => e.type === "talk" && dayDiff(e.date) >= 0).length;
+  const mine = ev.filter(e => e.type === "mine" && !routine(e) && dayDiff(e.date) >= 0).length;
+  const tiles = [
+    ["crit", soon, "7일 이내 할 일"],
+    ["warn", mid, "30일 이내"],
+    ["acc", talks, filter ? `${filter} 예정 발표` : "예정 발표"],
+    ["", mine, "연구 일정"],
+    ["", WEEKLY.length, "매주 정기"],
+    ["", UNDATED.length, "날짜 미정"],
+  ];
+  document.getElementById("tiles").innerHTML = tiles.map(([c,n,k]) =>
+    `<div class="tile ${c}"><div class="n mono">${n}</div><div class="k">${k}</div></div>`).join("");
+}
+
+/* ---------- 캘린더 ---------- */
+function renderCalendar(){
+  const y = cursor.getFullYear(), m = cursor.getMonth();
+  document.getElementById("month").textContent = `${y}.${String(m+1).padStart(2,"0")}`;
+
+  const byDate = {};
+  visible().forEach(e => (byDate[e.date] ||= []).push(e));
+
+  const first = new Date(y, m, 1);
+  const start = new Date(y, m, 1 - first.getDay());
+  const cells = [];
+  for (let i = 0; i < 42; i++){
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    const k = key(d);
+    const out = d.getMonth() !== m;
+    const evs = (byDate[k] || []).map(e => {
+      const far = e.type === "due" && dayDiff(e.date) > 7;
+      const txt = e.type === "talk" ? `${e.time ? e.time + " " : ""}${e.member}`
+        : e.type === "leave" ? e.title
+        : e.type === "mine" ? `${e.time ? e.time + " " : ""}${e.title}`
+        : e.kindLabel;
+      const cls = e.type === "talk" ? "talk" : e.type === "leave" ? "leave"
+        : e.type === "mine" ? "mine" : "due" + (far ? " far" : "");
+      return `<div class="ev ${cls}" title="${esc(e.title)}">${esc(txt)}</div>`;
+    }).join("");
+    cells.push(`<div class="cell${out ? " out" : ""}${k === DATA.today ? " today" : ""}">
+      <span class="dnum mono">${d.getDate()}</span>${evs}</div>`);
+    if (i >= 34 && d.getMonth() !== m && d.getDay() === 6) break;
+  }
+  document.getElementById("grid").innerHTML = cells.join("");
+}
+
+/* ---------- 다가오는 일정 ---------- */
+function renderList(){
+  const rows = visible().filter(e => !routine(e) && dayDiff(e.date) >= -1).slice(0, 40);
+  const box = document.getElementById("list");
+  if (!rows.length && !UNDATED.length){
+    box.innerHTML = `<div class="empty">예정된 일정이 없습니다.</div>`;
+    return;
+  }
+  const html = rows.map(e => {
+    const n = dayDiff(e.date);
+    const dd = n === 0 ? "D-day" : (n > 0 ? "D-" + n : "D+" + (-n));
+    const md = e.date.slice(5).replace("-", ".") + (e.time ? " " + e.time : "");
+    const meta = e.type === "mine"
+      ? `<span class="tag">${esc(e.kindLabel)}</span>` + (e.member && e.member.length
+          ? `<span class="who">${esc(e.member.join(", "))}</span>` : `<span>랩 공통</span>`)
+      : e.type === "talk"
+      ? `<span class="who">${esc(e.member)}</span><span class="tag">${esc(e.kindLabel)}</span>` +
+        (e.room ? `<span>${esc(e.room)}</span>` : "") + `<span>${esc(e.sub)}</span>`
+      : `<span class="tag">${esc(e.kindLabel)}</span>` +
+        (e.url ? `<a href="${esc(e.url)}" target="_blank" rel="noopener">공지 열기</a>` : "");
+    const changed = e.changedFrom ? `<div class="note">⚠ ${esc(e.changedFrom)}에서 변경됨</div>` : "";
+    const note = e.note ? `<div class="note" style="color:var(--ink-3)">${esc(e.note)}</div>` : "";
+    return `<div class="item s-${severity(e)}">
+      <div class="dday mono">${dd}<span class="date">${md}</span></div>
+      <div><div class="t">${esc(e.title)}</div><div class="meta">${meta}</div>${changed}${note}</div>
+    </div>`;
+  }).join("");
+
+  const undated = UNDATED.filter(u => !filter || u.type === "due" || forMember(u, filter)).map(u =>
+    `<div class="item s-calm">
+      <div class="dday mono">—<span class="date">미정</span></div>
+      <div><div class="t">${esc(u.title)}</div>
+        <div class="meta"><span class="tag">${esc(u.kindLabel)}</span>${u.member ? `<span class="who">${esc(u.member)}</span>` : ""}</div>
+        ${u.note ? `<div class="note" style="color:var(--ink-3)">${esc(u.note)}</div>` : ""}</div>
+    </div>`).join("");
+
+  box.innerHTML = html + undated;
+}
+
+function esc(s){ return String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function renderWeekly(){
+  const box = document.getElementById("weekly");
+  if (!WEEKLY.length){ box.hidden = true; return; }
+  box.hidden = false;
+  box.innerHTML = `<span class="lbl">학기 정기</span>` + WEEKLY.map(w =>
+    `<span class="slot"><b>${WD[w.wd]}</b>${w.time ? `<span class="tm">${w.time}</span>` : ""}${esc(w.title)}${w.who ? `<span class="who2">${esc(w.who)}</span>` : ""}</span>`
+  ).join("");
+}
+
+/* ---------- 연차 현황 ---------- */
+function renderLeave(){
+  const lv = DATA.leave;
+  const panel = document.getElementById("leavePanel");
+  if (!lv || !lv.people || !lv.people.length){ panel.hidden = true; return; }
+  panel.hidden = false;
+  document.getElementById("leaveYear").textContent = lv.year + "년";
+  const people = filter ? lv.people.filter(p => p.name === filter) : lv.people;
+  if (!people.length){
+    document.getElementById("leaveGrid").innerHTML =
+      `<div class="lv"><div class="sub">${esc(filter)} 님은 연차 관리 대상이 아닙니다.</div></div>`;
+    return;
+  }
+  document.getElementById("leaveGrid").innerHTML = people.map(p => {
+    const pct = p.total ? Math.round((p.left / p.total) * 100) : 0;
+    const cls = p.left <= 0 ? "none" : (p.left <= 3 ? "low" : "");
+    const dated = (p.dated || []).filter(l => dayDiff(l.date) >= 0).length;
+    return `<div class="lv ${cls}">
+      <div class="nm">${esc(p.name)}</div>
+      <div class="num"><span class="left mono">${p.left}</span><span class="of mono">/ ${p.total}일</span></div>
+      <div class="track"><i style="width:${Math.max(0, Math.min(100, pct))}%"></i></div>
+      <div class="sub">${p.used}일 사용${dated ? ` · 예정 ${dated}건` : ""}</div>
+    </div>`;
+  }).join("");
+}
+
+/* ---------- 일정 물어보기 ---------- */
+function factSheet(){
+  const L = [`오늘은 ${DATA.today} 입니다. 아래는 ${DATA.lab}의 일정 자료입니다.`, ""];
+  const dd = iso => { const n = dayDiff(iso); return n === 0 ? "오늘" : (n > 0 ? `D-${n}` : `${-n}일 지남`); };
+
+  L.push("[학회 마감·행사]");
+  (DATA.deadlines || []).forEach(d => L.push(
+    `- ${d.due || "날짜미정"} (${d.due ? dd(d.due) : "미정"}) ${d.society} ${d.event} — ${DUE_LABEL[d.kind] || d.kind}${d.note ? ` (${d.note})` : ""}`));
+
+  L.push("", "[우리 랩 발표] (제1저자 기준)");
+  (DATA.sessions || []).forEach(s => L.push(
+    `- ${s.start || "일시미정"} ${s.member} ${TALK_LABEL[s.kind] || s.kind} — ${s.title} @${s.room || "장소미정"} (${s.society} ${s.event})${s.note ? ` [${s.note}]` : ""}`));
+
+  L.push("", "[학기 정기 일정]");
+  WEEKLY.forEach(w => L.push(
+    `- 매주 ${WD[w.wd]}요일${w.time ? " " + w.time : ""} ${w.title} — ${w.who || "랩 전체"}`));
+
+  const once = (DATA.personal || []).filter(p => p.repeat !== "weekly");
+  if (once.length){
+    L.push("", "[그 외 연구 일정]");
+    once.forEach(p => L.push(`- ${p.due} ${p.title}${p.note ? ` (${p.note})` : ""}`));
+  }
+
+  const lv = DATA.leave;
+  if (lv && lv.people && lv.people.length){
+    L.push("", `[연차 현황 ${lv.year}년] (석사과정 대상)`);
+    lv.people.forEach(p => L.push(`- ${p.name}: 총 ${p.total}일, 사용 ${p.used}일, 남음 ${p.left}일`));
+    if (lv.leaves && lv.leaves.length){
+      L.push("예정된 연차:");
+      lv.leaves.forEach(l => L.push(`- ${l.date} ${l.name} ${l.half ? "반차" : "연차"}${l.note ? ` (${l.note})` : ""}`));
+    }
+    L.push("※ 날짜를 모르는 기존 사용분이 있어 캘린더에는 안 뜨지만 '사용'에는 포함돼 있습니다.");
+  }
+
+  L.push("", "[연구실 구성원] " + (DATA.members || []).join(", "));
+  return L.join("\n");
+}
+
+const RULES = `당신은 위 연구실의 일정 비서입니다. 아래 자료만 근거로 한국어로 답하세요.
+
+규칙
+- 자료에 없는 것은 지어내지 말고 "자료에 없습니다"라고 답하세요.
+- 날짜는 M/D(요일) 형식으로, 남은 날은 D-n으로 알려주세요.
+- 짧게 답하세요. 표가 필요 없으면 쓰지 마세요.
+- 발표 일정은 제1저자만 기록돼 있습니다. 공저자 정보는 자료에 없습니다.
+
+--- 자료 ---
+`;
+
+let sampleFn = null, turns = [], busy = false, ctl = null;
+const logEl = () => document.getElementById("log");
+
+function bubble(cls, text){
+  const d = document.createElement("div");
+  d.className = "msg " + cls;
+  d.textContent = text;
+  logEl().appendChild(d);
+  logEl().scrollTop = logEl().scrollHeight;
+  return d;
+}
+
+const ERR = {
+  not_granted: "이 페이지가 Claude를 쓰도록 허용되지 않았습니다.",
+  sampling_disabled: "이 계정에서는 Claude를 쓸 수 없습니다.",
+  rate_limited: "요청이 많습니다. 잠시 후 다시 시도하세요.",
+  session_expired: "다시 로그인해주세요.",
+  refused: "이 질문에는 답할 수 없습니다. 다르게 물어봐 주세요.",
+  empty_completion: "답이 비어 있습니다. 더 구체적으로 물어봐 주세요.",
+  prompt_too_large: "질문이 너무 깁니다. 줄여서 다시 물어봐 주세요.",
+};
+
+function showHints(){
+  const ex = ["이번 주에 뭐 해야 해?", "가장 급한 마감은?", "이승훈 남은 연차 며칠?", "10월 발표 누가 언제 해?"];
+  const box = document.createElement("div");
+  box.className = "hint";
+  box.innerHTML = "<b>이렇게 물어보세요</b>";
+  ex.forEach(t => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = "· " + t;
+    b.onclick = () => { document.getElementById("q").value = t; ask(t); };
+    box.appendChild(b);
+  });
+  logEl().appendChild(box);
+}
+
+async function ask(text){
+  if (busy || !sampleFn || !text.trim()) return;
+  const hint = logEl().querySelector(".hint");
+  if (hint) hint.remove();
+
+  busy = true;
+  const send = document.getElementById("send");
+  send.textContent = "중지"; send.classList.add("stop"); send.type = "button";
+  send.onclick = () => ctl && ctl.abort();
+  document.getElementById("q").value = "";
+
+  bubble("me", text);
+  turns.push({role:"user", content:text});
+  const out = bubble("ai", "생각하는 중…");
+
+  ctl = new AbortController();
+  try {
+    const { text: answer } = await sampleFn(
+      [{role:"user", content:RULES + factSheet()}, ...turns.slice(-8)],
+      { cache:false, modelTier:"quick", signal:ctl.signal,
+        onText: ({text}) => { out.textContent = text; logEl().scrollTop = logEl().scrollHeight; } });
+    turns.push({role:"assistant", content:answer});
+  } catch (e) {
+    if (e && e.code === "cancelled"){
+      out.textContent = (e.text || "").trim() || "(중지됨)";
+    } else {
+      const keep = (e && e.text || "").trim();
+      out.textContent = keep || "";
+      if (!keep) out.remove();
+      bubble("err", (e && ERR[e.code]) || "답을 가져오지 못했습니다. 잠시 후 다시 시도하세요.");
+      if (e && ["not_granted","sampling_disabled","not_declared","capability_disabled"].includes(e.code)){
+        document.getElementById("askForm").hidden = true;
+      }
+    }
+    turns.pop();
+  } finally {
+    busy = false; ctl = null;
+    send.textContent = "보내기"; send.classList.remove("stop"); send.type = "submit"; send.onclick = null;
+  }
+}
+
+async function initChat(){
+  document.getElementById("askForm").onsubmit = ev => {
+    ev.preventDefault();
+    ask(document.getElementById("q").value);
+  };
+  // 뷰어 밖(로컬 파일, 다른 호스트)에서는 window.claude 자체가 없다.
+  if (typeof claude === "undefined" || !claude || !claude.use) return;
+  const s = await claude.use("sample").catch(() => null);
+  if (!s) return;                       // 쓸 수 없는 환경 — 패널을 숨긴 채로 둔다
+  sampleFn = s;
+  document.getElementById("chatPanel").hidden = false;
+  document.getElementById("chatState").textContent = "Claude";
+  showHints();
+}
+
+function render(){ renderFilters(); renderTiles(); renderWeekly(); renderCalendar(); renderList(); renderLeave(); }
+
+document.getElementById("labname").textContent = DATA.lab + " 연구·학회 일정";
+document.getElementById("stamp").textContent = "갱신 " + DATA.generated.replace("T", " ").slice(0, 16);
+document.getElementById("prev").onclick = () => { cursor.setMonth(cursor.getMonth() - 1); renderCalendar(); };
+document.getElementById("next").onclick = () => { cursor.setMonth(cursor.getMonth() + 1); renderCalendar(); };
+render();
+initChat();
+</script>

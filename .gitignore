@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+
+# 프로그램북 PDF는 용량이 커서 추적하지 않는다 (다시 받으면 된다)
+agents/*/programs/
+agents/*/scans/
+
+# 생성물
+agents/*/reports/
+agents/*/calendars/
+agents/*/LATEST.md
+agents/*/data.json
