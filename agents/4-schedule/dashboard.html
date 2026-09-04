@@ -164,6 +164,14 @@ h1{font-size:26px; font-weight:600; letter-spacing:-.02em; margin:0}
 .ev.due.far{background:var(--surface-2); border-color:var(--line-2); color:var(--ink-2)}
 .ev.mine{background:var(--calm-soft); border-color:var(--calm); color:var(--calm)}
 .ev.leave{background:var(--warn-soft); border-color:var(--warn); color:var(--warn)}
+.ev.own{cursor:pointer; display:flex; align-items:center; gap:4px; padding-right:3px}
+.ev.own .x{margin-left:auto; opacity:0; font-weight:600; flex:none}
+.ev.own:hover .x, .ev.own:focus-visible .x{opacity:.8}
+.ev.own:hover, .ev.own:focus-visible{outline:1px solid currentColor; outline-offset:-1px}
+button.del{
+  font:inherit; font-size:11.5px; cursor:pointer; background:none; border:none; padding:0;
+  color:var(--crit); text-decoration:underline; text-underline-offset:2px;
+}
 @media (max-width:600px){
   .cell{min-height:62px; padding:4px 4px 6px}
   .ev{font-size:0; padding:0; height:5px; border-left:none; border-radius:99px; background:var(--accent)}
@@ -1043,13 +1051,15 @@ EVENTS = [
   ...addedEvents.map(p => ({
     type:"mine", date:p.date, time:p.time || null,
     member:p.member || [], title:p.title, kindLabel:MINE_LABEL[p.kind] || p.kind || "기타",
-    room:"", note:p.note || "", changedFrom:null, sub:"연구 일정", repeat:"", added:true
+    room:"", note:p.note || "", changedFrom:null, sub:"연구 일정", repeat:"", added:true,
+    coll:"events", docId:p.id
   })),
   ...allLeaves().map(l => ({
     type:"leave", date:l.date, time:null, member:[l.name],
     title:l.name + (l.half ? " 반차" : " 연차"),
     kindLabel:(l.half ? "반차" : "연차"),
-    room:"", note:l.note || "", changedFrom:null, sub:"연차", repeat:"", added:l.added
+    room:"", note:l.note || "", changedFrom:null, sub:"연차", repeat:"", added:l.added,
+    coll:l.added ? "leaves" : null, docId:l.id
   }))
 ].sort((a,b) => a.date.localeCompare(b.date) || (a.time||"").localeCompare(b.time||""));
 
@@ -1152,6 +1162,10 @@ function renderCalendar(){
         : e.kindLabel;
       const cls = e.type === "talk" ? "talk" : e.type === "leave" ? "leave"
         : e.type === "mine" ? "mine" : "due" + (far ? " far" : "");
+      if (e.added && e.docId && store)
+        return `<div class="ev ${cls} own" data-del="${esc(e.coll)}|${esc(e.docId)}"
+          title="${esc(e.title)} — 클릭하면 지웁니다" role="button" tabindex="0"
+          >${esc(txt)}<span class="x">×</span></div>`;
       return `<div class="ev ${cls}" title="${esc(e.title)}">${esc(txt)}</div>`;
     }).join("");
     cells.push(`<div class="cell${out ? " out" : ""}${k === DATA.today ? " today" : ""}">
@@ -1182,7 +1196,9 @@ function renderList(){
       : `<span class="tag">${esc(e.kindLabel)}</span>` +
         (e.url ? `<a href="${esc(e.url)}" target="_blank" rel="noopener">공지 열기</a>` : "");
     const changed = e.changedFrom ? `<div class="note">⚠ ${esc(e.changedFrom)}에서 변경됨</div>`
-      : (e.added ? `<div class="note" style="color:var(--calm)">이 화면에서 등록됨</div>` : "");
+      : (e.added ? `<div class="note" style="color:var(--calm)">이 화면에서 등록됨${
+          e.docId && store ? ` · <button type="button" class="del" data-del="${esc(e.coll)}|${esc(e.docId)}">지우기</button>` : ""
+        }</div>` : "");
     const note = e.note ? `<div class="note" style="color:var(--ink-3)">${esc(e.note)}</div>` : "";
     return `<div class="item s-${severity(e)}">
       <div class="dday mono">${dd}<span class="date">${md}</span></div>
@@ -1297,6 +1313,10 @@ const RULES = `당신은 위 연구실의 일정 비서입니다. 묻는 말에 
 - 누구 것인지 안 밝히면 되묻고, 함부로 정하지 마세요.
 - 등록에 성공하면 무엇이 언제로 등록됐는지, 남은 연차가 몇 일이 됐는지 한 줄로 알려주세요.
 
+- **도구를 부르기 전에 "등록됐습니다" / "취소됐습니다"라고 말하지 마세요.** 도구 결과를 받은 뒤에만
+  완료를 알리세요. 결과 없이 완료를 주장하면 화면에 경고가 붙습니다.
+- 이미 등록된 항목은 사용자가 캘린더에서 그 항목을 클릭해 직접 지울 수도 있습니다.
+
 등록이 실패하면
 - 도구가 돌려준 오류 문구를 그대로 전하세요. 그 문구가 이미 무엇을 고쳐야 하는지 말해줍니다.
 - **원인을 추측해서 지어내지 마세요.** 특히 "한글이 문제인 것 같다", "영문 이름으로 해보라",
@@ -1407,6 +1427,33 @@ async function dbAddEvent({title, date, time, member, kind, note}){
 
 function applySnapshots(){ buildAll(); render(); }
 
+/* 이 화면에서 등록한 항목은 캘린더·목록에서 바로 지운다 — 챗봇을 거치지 않는다 */
+async function deleteDoc(coll, id, label){
+  if (!store) return;
+  if (!confirm(`${label}\n\n지울까요?`)) return;
+  try {
+    await store.collection(coll).doc(id).delete();
+  } catch (e) {
+    alert("지우지 못했습니다: " + ((e && e.code) || "알 수 없는 오류"));
+  }
+}
+
+document.addEventListener("click", ev => {
+  const t = ev.target.closest && ev.target.closest("[data-del]");
+  if (!t) return;
+  ev.preventDefault();
+  const [coll, id] = t.getAttribute("data-del").split("|");
+  deleteDoc(coll, id, t.getAttribute("title") || t.textContent || "이 항목");
+});
+document.addEventListener("keydown", ev => {
+  if (ev.key !== "Enter" && ev.key !== " ") return;
+  const t = ev.target.closest && ev.target.closest("[data-del]");
+  if (!t) return;
+  ev.preventDefault();
+  const [coll, id] = t.getAttribute("data-del").split("|");
+  deleteDoc(coll, id, t.getAttribute("title") || t.textContent || "이 항목");
+});
+
 async function initDb(){
   if (typeof claude === "undefined" || !claude || !claude.use) return;
   const db = await claude.use("db").catch(() => null);
@@ -1426,6 +1473,11 @@ async function initDb(){
   canWrite = true;
 }
 
+/* 도구를 부르지 않고 "등록됐습니다"라고 답하는 일이 실제로 있었다.
+   호출 횟수를 세서, 결과 없이 완료를 주장하면 화면에서 바로잡는다. */
+let toolRan = 0;
+const counted = fn => (input) => { toolRan++; return fn(input); };
+
 const TOOLS = [
   {
     name: "add_leave",
@@ -1436,14 +1488,14 @@ const TOOLS = [
       date:{type:"string", description:"YYYY-MM-DD"},
       half:{type:"boolean", description:"반차면 true, 종일 연차면 false 또는 생략"},
       note:{type:"string", description:"사유 등 메모. 없으면 생략"}}, required:["name","date"]},
-    execute: input => dbAddLeave(input),
+    execute: counted(dbAddLeave),
   },
   {
     name: "cancel_leave",
     description: "이 화면에서 등록했던 연차를 취소한다. 이미 확정된 기록(leave.yaml)은 취소할 수 없다.",
     inputSchema: {type:"object", properties:{
       name:{type:"string"}, date:{type:"string", description:"YYYY-MM-DD"}}, required:["name","date"]},
-    execute: input => dbCancelLeave(input),
+    execute: counted(dbCancelLeave),
   },
   {
     name: "add_event",
@@ -1456,7 +1508,7 @@ const TOOLS = [
       member:{type:"array", items:{type:"string"}, description:"대상자 이름들. 비우면 랩 전체"},
       kind:{type:"string", description:"meeting/seminar/report/revision/submission/proposal/etc 중 하나"},
       note:{type:"string"}}, required:["title","date"]},
-    execute: input => dbAddEvent(input),
+    execute: counted(dbAddEvent),
   },
 ];
 
@@ -1516,9 +1568,13 @@ async function ask(text){
     const opts = { cache:false, modelTier:"quick", signal:ctl.signal,
       onText: ({text}) => { out.textContent = text; logEl().scrollTop = logEl().scrollHeight; } };
     if (canWrite) opts.tools = TOOLS;          // 등록까지 하려면 저장소가 있어야 한다
+    toolRan = 0;
     const { text: answer } = await sampleFn(
       [{role:"user", content:RULES + factSheet()}, ...turns.slice(-8)], opts);
     turns.push({role:"assistant", content:answer});
+    if (canWrite && toolRan === 0 && /등록(했|됐|되었)|취소(했|됐|되었)|삭제(했|됐|되었)|추가(했|됐|되었)/.test(answer))
+      bubble("err", "⚠ 실제로 저장되지 않았습니다 — 위 답은 실행 결과가 아닙니다. "
+        + "다시 요청하거나, 캘린더에서 그 항목을 클릭해 직접 지우세요.");
   } catch (e) {
     if (e && e.code === "cancelled"){
       out.textContent = (e.text || "").trim() || "(중지됨)";
