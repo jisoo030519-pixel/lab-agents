@@ -24,7 +24,8 @@ items:
     due: 2026-09-08
     repeat: weekly
     until: 2026-12-18
-    member: ""
+    member: [이승훈, 안재현, 이나경, 오희진, 현지수]
+    rotate: true            # 매주 순서를 자동으로 정한다 (사다리타기 대신)
     note: "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요"
 
   - title: 학부스터디

@@ -7,9 +7,10 @@
 #   aliases  : 프로그램에 실릴 수 있는 모든 표기. 이게 이 파일의 핵심입니다.
 #              공백과 대소문자는 알아서 무시합니다.
 #
-# ⚠️ 아래 표기 중 [확인됨] 주석이 붙은 것은 실제 학회 프로그램에서 확인한 표기입니다.
-#    나머지는 표준 로마자로 만든 추정값이니 각자 발표 이력을 보고 고쳐주세요.
+# 영문 표기는 랩 홈페이지(EPAD Lab)의 공식 표기를 그대로 옮긴 것입니다.
 #    표기가 틀리면 국제 학회 프로그램에서 그 사람을 못 찾습니다.
+#    실제로 추정값을 쓸 때 이나경(Nakyung → Na Gyeong)과 안재현(Ahn → An)이 어긋나 있었습니다.
+#    새 구성원을 넣을 때도 홈페이지나 본인 논문의 표기를 확인해서 넣으세요.
 #
 #    "J. Kim" 같은 이니셜 표기는 일부러 넣지 않았습니다 —
 #    동명이인이 너무 많아 엉뚱한 사람을 우리 사람으로 잡아냅니다.
@@ -26,77 +27,82 @@ lab: 인천대 연구실
 members:
   - name: 김종우
     sid: "20221064"
-    aliases: ["김종우", "Jong Woo Kim", "Kim, Jong Woo", "Jong-Woo Kim",
-              "Kim, Jongwoo", "Jongwoo Kim"]   # [확인됨] NAT/KIChE 2026: "Jong Woo Kim"
+    # 영문 표기 출처: EPAD Lab 홈페이지 (sites.google.com/view/epadlab)
+    aliases: ["김종우", "Jong Woo Kim", "Kim, Jong Woo", "Jongwoo Kim", "Jong-Woo Kim"]
     note: "지도교수. NAT 2026 WD1 세션 좌장"
-    role: ""
+    role: 지도교수(부교수)
     email: ""
     telegram: ""
 
   - name: 현지수
     sid: "202621088"
-    aliases: ["현지수", "Ji Su Hyeon", "Hyeon, Ji Su", "Jisu Hyeon", "Ji-Su Hyeon",
-              "Jisu Hyun", "Hyun, Jisu"]
-    # [확인됨] NAT 2026: "Ji Su Hyeon" — 현을 Hyeon 으로 적음 (Hyun 아님)
-    role: ""
+    # 영문 표기 출처: EPAD Lab 홈페이지 (sites.google.com/view/epadlab)
+    aliases: ["현지수", "Jisu Hyeon", "Ji Su Hyeon", "Hyeon, Jisu", "Ji-Su Hyeon"]
+    role: 석사과정
     email: ""
     telegram: ""
 
   - name: 이승훈
     sid: "202527010"
-    aliases: ["이승훈", "Seung Hun Lee", "Lee, Seung Hun", "Seunghun Lee", "Seung-Hun Lee",
-              "Seunghoon Lee", "Lee, Seunghoon"]
-    # [확인됨] NAT 2026: "Seung Hun Lee" — 훈을 Hun 으로 적음 (Hoon 아님)
-    role: ""
+    # 영문 표기 출처: EPAD Lab 홈페이지 (sites.google.com/view/epadlab)
+    aliases: ["이승훈", "Seung Hun Lee", "Lee, Seung Hun", "Seunghun Lee", "Seung-Hun Lee"]
+    role: 석사과정
     email: ""
     telegram: ""
 
   - name: 안재현
     sid: "202521082"
-    aliases: ["안재현", "Ahn, Jaehyun", "Jaehyun Ahn", "Jae-Hyun Ahn", "An, Jaehyun"]
-    role: ""
+    # 영문 표기 출처: EPAD Lab 홈페이지 (sites.google.com/view/epadlab)
+    aliases: ["안재현", "Jaehyun An", "An, Jaehyun", "Jae Hyun An", "Jaehyun Ahn", "Ahn, Jaehyun"]
+    role: 석사과정
     email: ""
     telegram: ""
 
   - name: 이나경
     sid: "202521084"
-    aliases: ["이나경", "Lee, Nakyung", "Nakyung Lee", "Na-Kyung Lee"]
-    role: ""
+    # 영문 표기 출처: EPAD Lab 홈페이지 (sites.google.com/view/epadlab)
+    aliases: ["이나경", "Na Gyeong Lee", "Lee, Na Gyeong", "Nagyeong Lee", "Na-Gyeong Lee"]
+    role: 석사과정
     email: ""
     telegram: ""
 
   - name: 오희진
     sid: "202521083"
-    aliases: ["오희진", "Oh, Heejin", "Heejin Oh", "Hee-Jin Oh"]
-    role: ""
+    # 영문 표기 출처: EPAD Lab 홈페이지 (sites.google.com/view/epadlab)
+    aliases: ["오희진", "Hee Jin Oh", "Oh, Hee Jin", "Heejin Oh", "Hee-Jin Oh"]
+    role: 석사과정
     email: ""
     telegram: ""
 
   - name: 김소윤
     sid: "202301412"
-    aliases: ["김소윤", "Kim, Soyoon", "Soyoon Kim", "So-Yoon Kim", "Soyun Kim"]
-    role: 학부생
+    # 영문 표기 출처: EPAD Lab 홈페이지 (sites.google.com/view/epadlab)
+    aliases: ["김소윤", "Soyun Kim", "Kim, Soyun", "So Yun Kim", "So-Yun Kim"]
+    role: 학부 인턴
     email: ""
     telegram: ""
 
   - name: 나승민
     sid: "202201417"
-    aliases: ["나승민", "Na, Seungmin", "Seungmin Na", "Seung-Min Na"]
-    role: 학부생
+    # 영문 표기 출처: EPAD Lab 홈페이지 (sites.google.com/view/epadlab)
+    aliases: ["나승민", "Seung Min Na", "Na, Seung Min", "Seungmin Na", "Seung-Min Na"]
+    role: 학부 인턴
     email: ""
     telegram: ""
 
   - name: 이영한
     sid: "202201432"
-    aliases: ["이영한", "Lee, Younghan", "Younghan Lee", "Young-Han Lee"]
-    role: 학부생
+    # 영문 표기 출처: EPAD Lab 홈페이지 (sites.google.com/view/epadlab)
+    aliases: ["이영한", "Young Han Lee", "Lee, Young Han", "Younghan Lee", "Young-Han Lee"]
+    role: 학부 인턴
     email: ""
     telegram: ""
 
   - name: 강서현
     sid: "202402370"
-    aliases: ["강서현", "Kang, Seohyun", "Seohyun Kang", "Seo-Hyun Kang"]
-    role: 학부생
+    # 영문 표기 출처: EPAD Lab 홈페이지 (sites.google.com/view/epadlab)
+    aliases: ["강서현", "Seo Hyun Kang", "Kang, Seo Hyun", "Seohyun Kang", "Seo-Hyun Kang"]
+    role: 학부 인턴
     email: ""
     telegram: ""
 

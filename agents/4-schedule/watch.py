@@ -10,6 +10,7 @@
   python watch.py upsert-sessions  f.json     발표 일정 병합 → 신규/변경 출력
   python watch.py month [YYYY-MM]             이번 달(또는 지정 달) 주요 일정 브리핑
   python watch.py leave                       연차 현황 (남은 연차 · 사용 내역)
+  python watch.py rotation [YYYY-MM-DD]       다음 개인미팅 순서
   python watch.py report                      통합 리포트 (LATEST.md)
   python watch.py ics                         캘린더 파일 생성 (전체 + 개인별)
   python watch.py web                         대시보드용 data.json 생성
@@ -21,6 +22,7 @@
 """
 import hashlib
 import json
+import random
 import sqlite3
 import re
 import sys
@@ -164,6 +166,21 @@ def add_months(d, n):
     return date(y, m, min(d.day, 28))
 
 
+def rotation_for(date_iso, members):
+    """그 주의 개인미팅 순서. 사다리타기 대신 쓴다.
+
+    같은 주·같은 명단이면 언제 돌려도 같은 순서가 나온다.
+    매번 달라지면 "아까랑 다른데?" 소리가 나와서 못 쓴다.
+    """
+    if not members:
+        return []
+    seed = hashlib.md5(("%s|%s" % (date_iso, ",".join(members))).encode("utf-8")).hexdigest()
+    order = list(members)
+    rnd = random.Random(int(seed[:16], 16))
+    rnd.shuffle(order)
+    return order
+
+
 def load_personal():
     """personal.yaml 을 읽어 반복 일정을 펼친 목록으로 돌려준다."""
     if not PERSONAL.exists():
@@ -180,12 +197,15 @@ def load_personal():
         who = base.get("member") or []
         base["member"] = [who] if isinstance(who, str) and who.strip() else (
             [w for w in who if str(w).strip()] if isinstance(who, list) else [])
+        rotate = bool(base.pop("rotate", False))
         # YAML은 따옴표 없는 날짜를 date/datetime 객체로 읽는다. 문자열로 통일한다.
         base["due"] = iso_str(base["due"])
         rep = str(base.pop("repeat", "") or "").lower()
         until = parse_date(base.pop("until", None))
         if rep in ("monthly", "weekly") and until is not None:
             base["repeat"] = rep
+        if rotate:
+            base["order"] = rotation_for(base["due"][:10], base["member"])
         out.append(base)
         if rep not in ("monthly", "weekly") or until is None:
             continue
@@ -203,9 +223,17 @@ def load_personal():
             clone = dict(base)
             clone["due"] = nxt.isoformat() + tail
             clone["note"] = (base["note"] + " (반복)").strip()
+            if rotate:
+                clone["order"] = rotation_for(nxt.isoformat(), base["member"])
             out.append(clone)
             step += 1
     return out
+
+
+def order_line(e):
+    """개인미팅 순서를 한 줄로. 순서가 없는 일정이면 빈 문자열."""
+    o = e.get("order") or []
+    return "순서: " + " → ".join(o) if o else ""
 
 
 def load_leave():
@@ -281,7 +309,7 @@ def timeline(include_undated=False):
             "time": None if allday or dt is None else dt.strftime("%H:%M"),
             "title": e["title"], "label": PERSONAL_LABEL.get(e["kind"], e["kind"]),
             "member": ", ".join(e.get("member") or []), "where": "",
-            "note": e.get("note", ""),
+            "note": "; ".join(x for x in [order_line(e), e.get("note", "")] if x),
             "url": "", "changed": None, "repeat": e.get("repeat", ""),
         })
 
@@ -768,7 +796,7 @@ def cmd_ics():
         ev = vevent(
             uid("mine", e["title"], e["kind"], e["due"]),
             "[%s] %s" % (label, e["title"]), dt, allday,
-            desc=e.get("note", ""),
+            desc="\n".join(x for x in [order_line(e), e.get("note", "")] if x),
             alarms=([("-PT1H", "1시간 뒤: " + e["title"])] if timed and not allday
                     else [("-P3D", "3일 뒤: " + e["title"]), ("-P1D", "내일: " + e["title"])]),
         )
@@ -876,6 +904,17 @@ def cmd_month(arg=None):
         print("\n매주 정기")
         for (wd, tm, title) in sorted(weekly):
             print("  %s  %s%s" % (WD[wd], (tm + "  ") if tm else "", title))
+
+        # 순서가 매주 바뀌는 일정은 접어두면 정작 필요한 정보가 사라진다
+        rotating = [e for e in load_personal()
+                    if e.get("order") and e["due"][:7] == tag]
+        for e in sorted(rotating, key=lambda x: x["due"]):
+            d = parse_date(e["due"])
+            mark = "  ← 다음" if d > today and all(
+                parse_date(x["due"]) >= d for x in rotating
+                if parse_date(x["due"]) > today) else ""
+            print("     %d/%d %s: %s%s"
+                  % (d.month, d.day, e["title"], " → ".join(e["order"]), mark))
 
     rows = once
     if not rows:
@@ -1070,6 +1109,37 @@ def cmd_show():
                      ensure_ascii=False, indent=2))
 
 
+def cmd_rotation(arg=None):
+    """다음 개인미팅 순서. 인자를 주면 그 날짜가 속한 회차를 본다."""
+    want = parse_date(arg) if arg else None
+    rows = [e for e in load_personal() if e.get("order")]
+    if not rows:
+        print("순서를 정할 일정이 없습니다.")
+        print("personal.yaml 의 해당 항목에 `rotate: true` 와 참가자 목록을 넣으세요.")
+        return
+    rows.sort(key=lambda e: e["due"])
+    if want:
+        pick = [e for e in rows if parse_date(e["due"]) >= want]
+    else:
+        today = date.today()
+        pick = [e for e in rows if parse_date(e["due"]) > today]
+    if not pick:
+        print("남은 회차가 없습니다. personal.yaml 의 until 을 확인하세요.")
+        return
+
+    WDN = "월화수목금토일"
+    for e in pick[:4]:
+        d = parse_date(e["due"])
+        dl = (d - date.today()).days
+        head = "%s(%s)" % (d.strftime("%m/%d"), WDN[d.weekday()])
+        tail = "  ← 다음 회차" if e is pick[0] else ""
+        print("\n%s %s  D-%d%s" % (head, e["title"], dl, tail))
+        for i, name in enumerate(e["order"], 1):
+            print("   %d. %s" % (i, name))
+    print("\n같은 주는 몇 번을 돌려도 같은 순서가 나옵니다 (날짜에서 뽑음).")
+    print("참가자가 바뀌면 순서도 바뀝니다.")
+
+
 def cmd_prune_members():
     """members.yaml 에서 빠진 사람의 발표 일정을 정리한다.
 
@@ -1110,7 +1180,7 @@ def cmd_reset():
 
 CMDS = {"list": cmd_list, "report": cmd_report, "ics": cmd_ics,
         "web": cmd_web, "sync": cmd_sync, "publish": cmd_publish, "leave": cmd_leave,
-        "show": cmd_show, "reset": cmd_reset,
+        "show": cmd_show, "reset": cmd_reset, "rotation": cmd_rotation,
         "prune-members": cmd_prune_members}
 ARG_CMDS = {"scan-pdf": cmd_scan_pdf,
             "upsert-deadlines": cmd_upsert_deadlines,
