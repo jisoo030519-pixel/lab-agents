@@ -1841,6 +1841,27 @@ function matchRoutine(title){
   return null;                                     // 정기 일정이 아니면 새 일정으로 넣는다
 }
 
+/* "월 14:45 - 15:30" / "화 오전" / "금 11:00~12:00" 같은 한 칸을 읽는다.
+   LLM 에게 중첩된 JSON 을 만들게 하는 것보다 공지 문구를 그대로 넘기게 하는 편이 안전하다. */
+function parseSlot(raw){
+  let s = String(raw == null ? "" : raw).trim();
+  if (!s) throw new Error("시간대가 비어 있습니다");
+  const dm = s.match(/^([월화수목금토일])(요일)?\s*/);
+  if (!dm) throw new Error(`요일을 못 알아들었습니다: "${raw}" — "월 14:45-15:30" 처럼 요일로 시작해야 합니다`);
+  const day = dm[1];
+  s = s.slice(dm[0].length).trim().replace(/^[,·:\-–]\s*/, "");
+  // "오후" 를 같이 집어야 한다. 시각만 떼면 "오후 3시" 가 03:00 이 된다.
+  const times = s.match(
+    /(?:오전|오후|아침|저녁|am|pm)?\s*(?:\d{1,2}\s*:\s*\d{2}|\d{1,2}\s*시(?:\s*\d{1,2}\s*분|\s*반)?)/gi) || [];
+  const start = times[0] ? checkTime(times[0].trim()) : "";
+  const end = times[1] ? checkTime(times[1].trim()) : "";
+  let note = s;
+  times.forEach(t => { note = note.replace(t, ""); });
+  note = note.replace(/[-–~()]/g, " ").replace(/\s+/g, " ").trim();
+  if (!start && !note) note = "";
+  return {day, start, end, note};
+}
+
 async function dbSetWeek({week, items}){
   if (!Array.isArray(items) || !items.length)
     throw new Error("반영할 항목이 없습니다");
@@ -1881,13 +1902,9 @@ async function dbSetWeek({week, items}){
 
     const made = [];
     for (const sl of slots){
-      const dayKey = String((sl && sl.day) || "").trim().replace(/요일$/, "");
-      if (!(dayKey in DAYNUM))
-        throw new Error(`요일을 못 알아들었습니다: "${sl && sl.day}" — 월·화·수·목·금·토·일 중 하나로 적어주세요`);
+      const {day: dayKey, start, end, note: slotNote} = parseSlot(sl);
       const date = days[DAYNUM[dayKey]];
-      const start = sl.start ? checkTime(sl.start) : "";
-      const end = sl.end ? checkTime(sl.end) : "";
-      const bits = [sl.note, raw.note].filter(Boolean).join(", ");
+      const bits = [slotNote, raw.note].filter(Boolean).join(", ");
       const rec = {
         title: name || title, date, time: start, end,
         member: [], kind: name ? "meeting" : "etc",
@@ -2026,6 +2043,7 @@ async function initDb(){
    호출 횟수를 세서, 결과 없이 완료를 주장하면 화면에서 바로잡는다. */
 let toolRan = 0;
 const counted = fn => (input) => { toolRan++; return fn(input); };
+let activeTools = [];              // limits().tools.maxCount 에 맞춰 잘라 쓴다
 
 const TOOLS = [
   {
@@ -2039,12 +2057,8 @@ const TOOLS = [
       items:{type:"array", description:"공지에 적힌 일정들", items:{type:"object", properties:{
         title:{type:"string", description:"개인미팅 / 학부스터디 / 랩세미나 등"},
         cancel:{type:"boolean", description:'그 주 없으면 true. 공지에 "X" 나 "없음" 이면 이것'},
-        slots:{type:"array", description:"열리는 시간들. 여러 번이면 여러 개",
-          items:{type:"object", properties:{
-            day:{type:"string", description:"월/화/수/목/금/토/일"},
-            start:{type:"string", description:"14:45, 오전 11시 등. 시각이 없으면 생략"},
-            end:{type:"string", description:"끝나는 시각. 없으면 생략"},
-            note:{type:"string", description:'"오전" 처럼 시각 대신 적힌 말'}}}},
+        slots:{type:"array", items:{type:"string"},
+          description:'열리는 시간을 공지 문구 그대로. 예: ["월 14:45-15:30", "화 오전"]'},
         note:{type:"string", description:"비대면, 발표자 같은 부연"}}}}},
       required:["items"]},
     execute: counted(dbSetWeek),
@@ -2166,7 +2180,7 @@ async function ask(text){
   try {
     const opts = { cache:false, modelTier:"quick", signal:ctl.signal,
       onText: ({text}) => { out.textContent = text; logEl().scrollTop = logEl().scrollHeight; } };
-    if (canWrite) opts.tools = TOOLS;          // 등록까지 하려면 저장소가 있어야 한다
+    if (canWrite) opts.tools = activeTools;    // 등록까지 하려면 저장소가 있어야 한다
     toolRan = 0;
     const { text: answer } = await sampleFn(
       [{role:"user", content:RULES + factSheet()}, ...turns.slice(-8)], opts);
@@ -2185,7 +2199,9 @@ async function ask(text){
       const keep = (e && e.text || "").trim();
       out.textContent = keep || "";
       if (!keep) out.remove();
-      bubble("err", (e && ERR[e.code]) || "답을 가져오지 못했습니다. 잠시 후 다시 시도하세요.");
+      bubble("err", (e && ERR[e.code])
+        || ("답을 가져오지 못했습니다 (" + ((e && e.code) || "알 수 없음") + ")"
+            + (e && e.message ? " — " + String(e.message).slice(0, 180) : "")));
       if (e && ["not_granted","sampling_disabled","not_declared","capability_disabled"].includes(e.code)){
         document.getElementById("askForm").hidden = true;
       }
@@ -2197,7 +2213,10 @@ async function ask(text){
   }
 }
 
+function primeTools(){ activeTools = TOOLS.slice(); }
+
 async function initChat(){
+  primeTools();
   document.getElementById("askForm").onsubmit = ev => {
     ev.preventDefault();
     ask(document.getElementById("q").value);
@@ -2209,10 +2228,20 @@ async function initChat(){
   sampleFn = s;
   const lim = await s.limits().catch(() => null);
   if (!lim || !lim.tools) canWrite = false;   // 이 화면에서는 도구를 못 쓴다 → 읽기 전용
+  else {
+    // 한도를 넘겨 보내면 요청 자체가 거부된다. 중요한 것부터 남긴다.
+    const max = Number(lim.tools.maxCount) || TOOLS.length;
+    if (TOOLS.length > max){
+      activeTools = TOOLS.slice(0, max);
+      console.warn("도구 %d개 중 %d개만 사용 (한도)", TOOLS.length, max);
+    }
+  }
   document.getElementById("chatPanel").hidden = false;
   document.getElementById("chatState").textContent = canWrite ? "질문 · 등록" : "질문만";
   showHints();
 }
+
+activeTools = [];   // TOOLS 정의 뒤에 채운다
 
 function render(){ renderFilters(); renderTiles(); renderWeekly(); renderCalendar(); renderList(); renderLeave(); }
 
