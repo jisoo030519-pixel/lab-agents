@@ -272,7 +272,7 @@ footer code{font-family:"IBM Plex Mono",monospace; background:var(--surface-2); 
 <script>
 const DATA = /*DATA*/{
   "lab": "인천대 연구실",
-  "generated": "2026-09-04T18:29:27",
+  "generated": "2026-09-04T18:44:21",
   "today": "2026-09-04",
   "members": [
     "김종우",
@@ -1365,6 +1365,7 @@ const dayDiff = iso => Math.round((new Date(iso.slice(0,10)+"T00:00:00") - TODAY
 /* 이 페이지에서 등록해 저장소에 들어간 것 — 아직 leave.yaml/personal.yaml 에 반영되기 전 */
 let addedLeaves = [];      // {id, name, date, half, note}
 let addedEvents = [];      // {id, title, date, time, member[], kind, note}
+let addedOverrides = [];   // {id, title, date, action, to, note} — 그 주만 바꾸는 예외
 
 const allLeaves = () => [
   ...(((DATA.leave && DATA.leave.leaves) || []).map(l => ({...l, added:false}))),
@@ -1376,6 +1377,22 @@ let EVENTS = [], WEEKLY = [], UNDATED = [];
 const WD = "일월화수목금토";
 
 function buildAll(){
+// 정기 일정에 그 주 예외(휴강·이동)를 적용한다
+const ovKey = (t, d) => t + "|" + d;
+const ovMap = new Map(addedOverrides.map(o => [ovKey(o.title, o.date), o]));
+const personal = [];
+for (const p of (DATA.personal || [])){
+  if (!p.due) continue;
+  const o = ovMap.get(ovKey(p.title, p.due.slice(0,10)));
+  if (!o) { personal.push(p); continue; }
+  if (o.action === "skip") continue;
+  const to = String(o.to || "");
+  if (!/^\d{4}-\d{2}-\d{2}/.test(to)) { personal.push(p); continue; }
+  personal.push({...p, due: to.length > 10 ? to : to + p.due.slice(10),
+                 repeat: "", movedFrom: p.due.slice(0,10),
+                 note: [o.note, p.note].filter(Boolean).join("; ")});
+}
+
 EVENTS = [
   ...DATA.deadlines.filter(d => d.due).map(d => ({
     type:"due", date:d.due.slice(0,10), time:null, member:null,
@@ -1388,10 +1405,11 @@ EVENTS = [
     room:s.room, note:s.note, changedFrom:s.prev_start || null,
     sub:`${s.society} ${s.event}` + (s.session ? " · " + s.session : "")
   })),
-  ...(DATA.personal || []).filter(p => p.due).map(p => ({
+  ...personal.map(p => ({
     type:"mine", date:p.due.slice(0,10), time:(p.due.length>10 ? p.due.slice(11,16) : null),
     member:p.member || [], title:p.title, kindLabel:MINE_LABEL[p.kind] || p.kind,
-    room:"", note:p.note, changedFrom:null, sub:"연구 일정", repeat:p.repeat || ""
+    room:"", note:p.note, changedFrom:null, sub:"연구 일정", repeat:p.repeat || "",
+    movedFrom:p.movedFrom || null
   })),
   ...addedEvents.map(p => ({
     type:"mine", date:p.date, time:p.time || null,
@@ -1413,7 +1431,8 @@ EVENTS.filter(e => e.repeat === "weekly").forEach(e => {
   const wd = new Date(e.date + "T00:00:00").getDay();
   const k = wd + "|" + (e.time || "") + "|" + e.title;
   if (!seen.has(k)) seen.set(k, {wd, time:e.time, title:e.title,
-    who: Array.isArray(e.member) && e.member.length ? e.member.join(", ") : ""});
+    who: Array.isArray(e.member) && e.member.length
+      ? (e.member.length > 4 ? e.member.length + "명" : e.member.join(", ")) : ""});
 });
 WEEKLY = [...seen.values()].sort((a,b) => a.wd - b.wd || (a.time||"").localeCompare(b.time||""));
 
@@ -1766,6 +1785,57 @@ async function dbCancelLeave({name, date}){
           left: (leavePeople().find(x => x.name === n) || {}).left + 1};
 }
 
+/* 정기 일정의 그 주만 바꾸는 예외 — 다음주 공지를 받아 반영하는 통로 */
+function findRoutine(title, date){
+  const t = String(title || "").trim();
+  if (!t) throw new Error("어떤 일정인지 알려주세요 (개인미팅 / 학부스터디 / 랩세미나)");
+  const d = checkDate(date);
+  const names = [...new Set((DATA.personal || []).filter(p => p.repeat === "weekly")
+    .map(p => p.title))];
+  const hit = names.filter(n => n === t || n.includes(t) || t.includes(n));
+  if (hit.length !== 1)
+    throw new Error(hit.length ? `"${t}" 가 여럿에 해당합니다: ${hit.join(", ")}`
+      : `"${t}" 라는 정기 일정이 없습니다. 있는 것: ${names.join(", ")}`);
+  const name = hit[0];
+  const occ = (DATA.personal || []).find(p => p.title === name && p.due.slice(0,10) === d);
+  if (!occ){
+    const near = (DATA.personal || []).filter(p => p.title === name && p.due >= DATA.today)
+      .slice(0,3).map(p => fmtDate(p.due.slice(0,10)));
+    throw new Error(`${fmtDate(d)} 에는 ${name} 회차가 없습니다. 가까운 회차: ${near.join(", ") || "없음"}`);
+  }
+  return {name, date:d};
+}
+
+async function dbSkipWeek({title, date, note}){
+  const {name, date:d} = findRoutine(title, date);
+  if (addedOverrides.some(o => o.title === name && o.date === d))
+    throw new Error(`${fmtDate(d)} ${name} 은 이미 변경돼 있습니다. 먼저 되돌리세요`);
+  await store.collection("overrides").add(
+    {title:name, date:d, action:"skip", to:"", note:String(note || ""), at:new Date().toISOString()});
+  return {ok:true, title:name, date:d, dateLabel:fmtDate(d), action:"휴강"};
+}
+
+async function dbMoveWeek({title, date, to_date, to_time, note}){
+  const {name, date:d} = findRoutine(title, date);
+  if (addedOverrides.some(o => o.title === name && o.date === d))
+    throw new Error(`${fmtDate(d)} ${name} 은 이미 변경돼 있습니다. 먼저 되돌리세요`);
+  const nd = checkDate(to_date || date);
+  const nt = checkTime(to_time);
+  if (nd === d && !nt) throw new Error("옮길 날짜나 시각 중 하나는 있어야 합니다");
+  await store.collection("overrides").add(
+    {title:name, date:d, action:"move", to: nt ? nd + "T" + nt : nd,
+     note:String(note || ""), at:new Date().toISOString()});
+  return {ok:true, title:name, from:fmtDate(d), to:fmtDate(nd) + (nt ? " " + nt : "")};
+}
+
+async function dbRestoreWeek({title, date}){
+  const {name, date:d} = findRoutine(title, date);
+  const o = addedOverrides.find(x => x.title === name && x.date === d);
+  if (!o) throw new Error(`${fmtDate(d)} ${name} 은 변경된 적이 없습니다`);
+  await store.collection("overrides").doc(o.id).delete();
+  return {ok:true, restored:name, dateLabel:fmtDate(d)};
+}
+
 async function dbAddEvent({title, date, time, member, kind, note}){
   const t = String(title || "").trim();
   if (!t) throw new Error("일정 제목이 필요합니다");
@@ -1820,6 +1890,11 @@ async function initDb(){
       .filter(l => l.name && l.date);
     applySnapshots();
   }, onErr);
+  db.collection("overrides").onSnapshot(snap => {
+    addedOverrides = snap.docs.map(d => ({id:d.id, ...(d.data() || {})}))
+      .filter(o => o.title && o.date && o.action);
+    applySnapshots();
+  }, onErr);
   db.collection("events").onSnapshot(snap => {
     addedEvents = snap.docs.map(d => ({id:d.id, ...(d.data() || {})}))
       .filter(e => e.title && e.date);
@@ -1850,6 +1925,36 @@ const TOOLS = [
     inputSchema: {type:"object", properties:{
       name:{type:"string"}, date:{type:"string", description:"YYYY-MM-DD"}}, required:["name","date"]},
     execute: counted(dbCancelLeave),
+  },
+  {
+    name: "skip_week",
+    description: "정기 일정(개인미팅·학부스터디·랩세미나)의 특정 회차를 휴강 처리한다. "
+      + "그 주만 없어지고 다른 주는 그대로다. 다음주 공지에 '이번주 세미나 없음' 같은 내용이 있으면 이걸 쓴다.",
+    inputSchema: {type:"object", properties:{
+      title:{type:"string", description:"개인미팅 / 학부스터디 / 랩세미나"},
+      date:{type:"string", description:"원래 잡혀 있던 날. YYYY-MM-DD 또는 9/11"},
+      note:{type:"string", description:"사유. 없으면 생략"}}, required:["title","date"]},
+    execute: counted(dbSkipWeek),
+  },
+  {
+    name: "move_week",
+    description: "정기 일정의 특정 회차만 다른 날/시각으로 옮긴다. 그 주만 바뀌고 나머지 주는 그대로다. "
+      + "날짜는 그대로 두고 시각만 바꾸려면 to_date 를 생략한다.",
+    inputSchema: {type:"object", properties:{
+      title:{type:"string"},
+      date:{type:"string", description:"원래 잡혀 있던 날"},
+      to_date:{type:"string", description:"옮길 날. 시각만 바꾸면 생략"},
+      to_time:{type:"string", description:"옮길 시각. 날짜만 바꾸면 생략"},
+      note:{type:"string"}}, required:["title","date"]},
+    execute: counted(dbMoveWeek),
+  },
+  {
+    name: "restore_week",
+    description: "휴강·이동 처리한 회차를 원래대로 되돌린다.",
+    inputSchema: {type:"object", properties:{
+      title:{type:"string"}, date:{type:"string", description:"원래 잡혀 있던 날"}},
+      required:["title","date"]},
+    execute: counted(dbRestoreWeek),
   },
   {
     name: "add_event",

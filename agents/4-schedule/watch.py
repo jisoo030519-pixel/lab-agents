@@ -50,6 +50,7 @@ TARGETS = ROOT / "targets.yaml"
 MEMBERS = SHARED / "members.yaml"
 PERSONAL = ROOT / "personal.yaml"
 LEAVE = ROOT / "leave.yaml"
+OVERRIDES = ROOT / "overrides.yaml"
 SHARED_DB = SHARED / "lab.db"
 STATE = ROOT / "state.json"
 REPORTS = ROOT / "reports"
@@ -185,10 +186,49 @@ def rotation_for(series_key, members, index):
     return base[k:] + base[:k]
 
 
+def load_overrides():
+    """정기 일정의 그 주만 바꾸는 예외. {(제목, 날짜): {...}} 로 돌려준다."""
+    if not OVERRIDES.exists():
+        return {}
+    out = {}
+    for it in (load_yaml(OVERRIDES).get("items") or []):
+        t, d = str(it.get("title") or "").strip(), iso_str(it.get("date"))[:10]
+        act = str(it.get("action") or "").lower()
+        if not t or not parse_date(d) or act not in ("skip", "move"):
+            continue
+        out[(t, d)] = {"action": act, "to": iso_str(it.get("to")),
+                       "note": str(it.get("note") or "")}
+    return out
+
+
 def load_personal():
-    """personal.yaml 을 읽어 반복 일정을 펼친 목록으로 돌려준다."""
+    """personal.yaml 을 읽어 반복 일정을 펼친 목록으로 돌려준다.
+
+    overrides.yaml 의 그 주 예외(휴강·시간 변경)를 적용한 뒤 돌려준다.
+    """
     if not PERSONAL.exists():
         return []
+    ov = load_overrides()
+
+    def apply(item):
+        """예외를 적용. 취소된 회차면 None."""
+        key = (item["title"], item["due"][:10])
+        rule = ov.get(key)
+        if not rule:
+            return item
+        if rule["action"] == "skip":
+            return None
+        to = rule["to"]
+        if not parse_date(to):
+            return item
+        item = dict(item)
+        item["due"] = to if len(to) > 10 else to + item["due"][10:]
+        item["moved_from"] = key[1]
+        item["repeat"] = ""          # 일회성이므로 정기 블록에 접히면 안 된다
+        if rule["note"]:
+            item["note"] = "; ".join(x for x in [rule["note"], item.get("note", "")] if x)
+        return item
+
     out = []
     for it in (load_yaml(PERSONAL).get("items") or []):
         if not it.get("title") or not it.get("due"):
@@ -211,7 +251,9 @@ def load_personal():
         series = "%s|%s" % (base["title"], base["due"][:10])   # 학기 내내 고정
         if rotate:
             base["order"] = rotation_for(series, base["member"], 0)
-        out.append(base)
+        first_item = apply(base)
+        if first_item is not None:
+            out.append(first_item)
         if rep not in ("monthly", "weekly") or until is None:
             continue
         first, _ = parse_dt(base["due"])
@@ -230,7 +272,9 @@ def load_personal():
             clone["note"] = (base["note"] + " (반복)").strip()
             if rotate:
                 clone["order"] = rotation_for(series, base["member"], step)
-            out.append(clone)
+            got = apply(clone)
+            if got is not None:
+                out.append(got)
             step += 1
     return out
 
@@ -883,6 +927,8 @@ def cmd_month(arg=None):
     tag = "%04d-%02d" % (y, m)
     rows = [r for r in timeline() if r["date"][:7] == tag]
 
+    changed = [(t, d, r) for (t, d), r in load_overrides().items() if d[:7] == tag]
+
     head = "%d월 주요 일정" % m
     if (y, m) != (today.year, today.month):
         head = "%d년 %d월 주요 일정" % (y, m)
@@ -920,6 +966,20 @@ def cmd_month(arg=None):
                 if parse_date(x["due"]) > today) else ""
             print("     %d/%d %s: %s%s"
                   % (d.month, d.day, e["title"], " → ".join(e["order"]), mark))
+
+    if changed:
+        print("\n이번 달 변경")
+        for t, d, r in sorted(changed, key=lambda x: x[1]):
+            dd = parse_date(d)
+            when = "%d/%d(%s)" % (dd.month, dd.day, WD[dd.weekday()])
+            if r["action"] == "skip":
+                print("  %s %s 휴강%s" % (when, t, (" — " + r["note"]) if r["note"] else ""))
+            else:
+                to = parse_date(r["to"])
+                print("  %s %s → %d/%d(%s)%s%s"
+                      % (when, t, to.month, to.day, WD[to.weekday()],
+                         (" " + r["to"][11:]) if len(r["to"]) > 10 else "",
+                         (" — " + r["note"]) if r["note"] else ""))
 
     rows = once
     if not rows:

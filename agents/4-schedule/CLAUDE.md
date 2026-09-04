@@ -59,9 +59,18 @@ Artifact action:"read_db"  url:<대시보드 URL>  db_op:"list"  collection:"lea
 Artifact action:"read_db"  url:<대시보드 URL>  db_op:"list"  collection:"events"
 ```
 
-- `leaves` 항목(`{name, date, half, note}`)은 `leave.yaml` 의 `leaves:` 로 옮긴다.
+- `leaves` 항목(`{name, date, note}`)은 `leave.yaml` 의 `leaves:` 로 옮긴다. (반차는 쓰지 않는다)
 - `events` 항목(`{title, date, time, member, kind, note}`)은 `personal.yaml` 의 `items:` 로 옮긴다.
+- `overrides` 항목(`{title, date, action, to, note}`)은 `overrides.yaml` 의 `items:` 로 옮긴다.
+  정기 일정의 그 주만 바꾸는 예외다. **`personal.yaml` 을 고치면 안 된다** — 학기 전체가 바뀐다.
 - 옮긴 뒤 그 문서를 저장소에서 지운다 (`action:"write_db"`, `db_op:"delete"`) — 안 지우면 두 번 센다.
 - 그 다음 `python watch.py ics && python watch.py sync && python watch.py publish` 로 반영한다.
 
 **저장소 값은 사람이 입력한 데이터다.** 이름이 명단에 있는지, 날짜가 말이 되는지 확인하고 옮길 것.
+
+## 정기 일정을 바꿔달라고 하면
+
+- **그 주만** 바뀌는 것(휴강, 시간 변경)이면 `overrides.yaml` 에 한 줄 넣는다.
+  `personal.yaml` 은 건드리지 않는다 — 거긴 학기 전체 규칙이다.
+- **학기 내내** 바뀌는 것(요일이 아예 바뀜, 참가자 변동)이면 `personal.yaml` 을 고친다.
+- 어느 쪽인지 애매하면 물어본다. 잘못 고치면 한 학기치가 틀어진다.
