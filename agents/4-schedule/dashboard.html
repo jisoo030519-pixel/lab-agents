@@ -1412,7 +1412,7 @@ EVENTS = [
     movedFrom:p.movedFrom || null
   })),
   ...addedEvents.map(p => ({
-    type:"mine", date:p.date, time:p.time || null,
+    type:"mine", date:p.date, time:p.time || null, endTime:p.end || null,
     member:p.member || [], title:p.title, kindLabel:MINE_LABEL[p.kind] || p.kind || "기타",
     room:"", note:p.note || "", changedFrom:null, sub:"연구 일정", repeat:"", added:true,
     coll:"events", docId:p.id
@@ -1669,9 +1669,34 @@ const RULES = `당신은 위 연구실의 일정 비서입니다. 묻는 말에 
 - 짧게 답하세요. 표가 필요 없으면 쓰지 마세요.
 - 발표 일정은 제1저자만 기록돼 있습니다. 공저자 정보는 자료에 없습니다.
 
+## 다음 주 공지가 오면 — 가장 중요한 작업입니다
+
+이 연구실은 매주 금요일에 다음 주 일정을 공지합니다. 사용자가 그 내용을 그대로 붙여넣습니다.
+예를 들면 이렇게 옵니다.
+
+    다음주 일정 안내드립니다.
+    - 개인미팅: 월 14:45 - 15:30, 화 오전
+    - 학부 스터디: X
+    - 랩세미나: 금 11:00 - 12:00 (비대면, 연구발표: X / 논문발표: 승훈)
+
+**이런 내용을 받으면 set_week 를 한 번 부르세요. 요약해서 되읊지 마세요.**
+붙여넣은 사람은 캘린더가 바뀌기를 원한 것이지, 자기가 쓴 글을 다시 보고 싶은 게 아닙니다.
+
+읽는 법
+- 요일과 시각을 **그대로** 넘기세요. 날짜 계산은 도구가 합니다. 직접 계산하면 틀립니다.
+- X, 없음, -, 휴강 → 그 항목은 cancel: true
+- "월 14:45 - 15:30, 화 오전" → 슬롯 두 개. 두 번째는 시각이 없으니 {day:"화", note:"오전"}
+- 괄호 안의 부연(비대면, 발표자 등)은 그 항목의 note 에 넣으세요.
+- 공지에 없는 정기 일정은 건드리지 마세요 — items 에 넣지 않으면 그대로 갑니다.
+- "다음주"면 week 를 생략하거나 "next", "이번주"면 "this" 로 주세요.
+- 반영한 뒤에는 도구가 돌려준 applied 목록을 그대로 보여주세요.
+
+한 건만 손볼 때는 skip_week / move_week / restore_week 를 쓰세요.
+
 등록할 때 — 도구가 있으니 반드시 쓰세요.
-- 연차/반차 등록 → add_leave, 취소 → cancel_leave
+- 연차 등록 → add_leave, 취소 → cancel_leave
 - 그 외 일정(미팅·마감·할 일) → add_event
+- 정기 일정의 그 주만 바꾸기 → skip_week / move_week / restore_week
 - 날짜와 시각은 들은 대로 넘기면 됩니다. "9/20", "9월 20일", "오후 2시" 다 알아듣습니다.
   연도를 안 말하면 ${DATA.today.slice(0,4)}년입니다.
 - **이 연구실은 종일 연차만 씁니다. 반차는 없습니다.** 종일인지 반차인지 되묻지 말고 바로 등록하세요.
@@ -1785,7 +1810,101 @@ async function dbCancelLeave({name, date}){
           left: (leavePeople().find(x => x.name === n) || {}).left + 1};
 }
 
-/* 정기 일정의 그 주만 바꾸는 예외 — 다음주 공지를 받아 반영하는 통로 */
+/* ---------- 다음주 공지를 통째로 반영 ----------
+   실제 공지는 날짜가 아니라 요일로 온다. 개인미팅은 주 2회일 수도 있고,
+   "X" 는 그 주 없음을 뜻한다. LLM 에게 날짜 계산을 시키면 틀리므로
+   요일을 그대로 받아 코드가 날짜로 바꾼다. */
+const DAYNUM = {"일":0,"월":1,"화":2,"수":3,"목":4,"금":5,"토":6};
+
+function weekMonday(spec){
+  const s = String(spec == null ? "" : spec).trim();
+  const base = new Date(DATA.today + "T00:00:00Z");
+  let ref;
+  if (!s || /^(next|다음\s*주|다음주)$/i.test(s)) ref = new Date(base.getTime() + 7 * 86400000);
+  else if (/^(this|이번\s*주|이번주|금주)$/i.test(s)) ref = base;
+  else ref = new Date(checkDate(s) + "T00:00:00Z");
+  const dow = ref.getUTCDay();                     // 0=일
+  const back = (dow + 6) % 7;                      // 월요일까지 되감기
+  return new Date(ref.getTime() - back * 86400000);
+}
+const isoOf = d => d.toISOString().slice(0,10);
+
+function routineTitles(){
+  return [...new Set((DATA.personal || []).filter(p => p.repeat === "weekly").map(p => p.title))];
+}
+function matchRoutine(title){
+  const t = String(title || "").replace(/\s+/g, "");
+  const hit = routineTitles().filter(n => n.replace(/\s+/g,"") === t
+    || n.replace(/\s+/g,"").includes(t) || t.includes(n.replace(/\s+/g,"")));
+  if (hit.length === 1) return hit[0];
+  if (hit.length > 1) throw new Error(`"${title}" 가 여럿에 해당합니다: ${hit.join(", ")}`);
+  return null;                                     // 정기 일정이 아니면 새 일정으로 넣는다
+}
+
+async function dbSetWeek({week, items}){
+  if (!Array.isArray(items) || !items.length)
+    throw new Error("반영할 항목이 없습니다");
+  const mon = weekMonday(week);
+  const days = {};
+  for (let i = 0; i < 7; i++) days[(i + 1) % 7] = isoOf(new Date(mon.getTime() + i * 86400000));
+  const weekDates = new Set(Object.values(days));
+  const done = [];
+
+  for (const raw of items){
+    const title = String((raw && raw.title) || "").trim();
+    if (!title) continue;
+    const name = matchRoutine(title);
+    const slots = Array.isArray(raw.slots) ? raw.slots : [];
+    const cancel = !!raw.cancel || slots.length === 0;
+
+    // 그 주에 원래 잡혀 있던 회차를 모두 치운다
+    let cleared = 0, keptOrder = null;
+    if (name){
+      for (const p of (DATA.personal || [])){
+        if (p.title !== name) continue;
+        const d = p.due.slice(0,10);
+        if (!weekDates.has(d)) continue;
+        if (p.order && p.order.length) keptOrder = p.order;
+        if (!addedOverrides.some(o => o.title === name && o.date === d)){
+          await store.collection("overrides").add({
+            title:name, date:d, action:"skip", to:"",
+            note:"다음주 공지 반영", at:new Date().toISOString()});
+        }
+        cleared++;
+      }
+    }
+
+    if (cancel){
+      done.push(`${name || title}: 없음`);
+      continue;
+    }
+
+    const made = [];
+    for (const sl of slots){
+      const dayKey = String((sl && sl.day) || "").trim().replace(/요일$/, "");
+      if (!(dayKey in DAYNUM))
+        throw new Error(`요일을 못 알아들었습니다: "${sl && sl.day}" — 월·화·수·목·금·토·일 중 하나로 적어주세요`);
+      const date = days[DAYNUM[dayKey]];
+      const start = sl.start ? checkTime(sl.start) : "";
+      const end = sl.end ? checkTime(sl.end) : "";
+      const bits = [sl.note, raw.note].filter(Boolean).join(", ");
+      const rec = {
+        title: name || title, date, time: start, end,
+        member: [], kind: name ? "meeting" : "etc",
+        note: [bits, keptOrder ? "순서: " + keptOrder.join(" → ") : ""].filter(Boolean).join(" / "),
+        at: new Date().toISOString(),
+      };
+      await store.collection("events").add(rec);
+      made.push(`${dayKey} ${start || "시각미정"}${end ? "~" + end : ""}`);
+    }
+    done.push(`${name || title}: ${made.join(", ")}`);
+  }
+
+  return {ok:true, week: `${isoOf(mon)} 주`, applied: done,
+          hint: "캘린더에 바로 반영됐습니다"};
+}
+
+/* 정기 일정의 그 주만 바꾸는 예외 — 한 건씩 손볼 때 쓴다 */
 function findRoutine(title, date){
   const t = String(title || "").trim();
   if (!t) throw new Error("어떤 일정인지 알려주세요 (개인미팅 / 학부스터디 / 랩세미나)");
@@ -1844,7 +1963,7 @@ async function dbAddEvent({title, date, time, member, kind, note}){
   const who = (Array.isArray(member) ? member : (member ? [member] : []))
     .map(x => String(x).trim()).filter(Boolean)
     .map(x => resolveName(x, DATA.members || [], "연구실 명단"));
-  const rec = {title:t, date:d, time:tm, member:who, kind:String(kind || "etc"),
+  const rec = {title:t, date:d, time:tm, end:"", member:who, kind:String(kind || "etc"),
                note:String(note || ""), at:new Date().toISOString()};
   const ref = await store.collection("events").add(rec);
   return {ok:true, id:ref.id, ...rec, dateLabel: fmtDate(d)};
@@ -1909,6 +2028,27 @@ let toolRan = 0;
 const counted = fn => (input) => { toolRan++; return fn(input); };
 
 const TOOLS = [
+  {
+    name: "set_week",
+    description: "한 주의 정기 일정을 공지 내용대로 통째로 다시 세팅한다. "
+      + "매주 금요일에 오는 '다음주 일정 안내' 를 받으면 이것 하나로 처리한다. "
+      + "요일을 그대로 넘기면 날짜는 알아서 계산한다. 그 주에 원래 있던 회차는 자동으로 치운다. "
+      + "슬롯을 여러 개 주면 한 주에 여러 번 열리는 일정이 된다.",
+    inputSchema: {type:"object", properties:{
+      week:{type:"string", description:'"next"(다음주, 기본) / "this"(이번주) / 그 주의 아무 날짜'},
+      items:{type:"array", description:"공지에 적힌 일정들", items:{type:"object", properties:{
+        title:{type:"string", description:"개인미팅 / 학부스터디 / 랩세미나 등"},
+        cancel:{type:"boolean", description:'그 주 없으면 true. 공지에 "X" 나 "없음" 이면 이것'},
+        slots:{type:"array", description:"열리는 시간들. 여러 번이면 여러 개",
+          items:{type:"object", properties:{
+            day:{type:"string", description:"월/화/수/목/금/토/일"},
+            start:{type:"string", description:"14:45, 오전 11시 등. 시각이 없으면 생략"},
+            end:{type:"string", description:"끝나는 시각. 없으면 생략"},
+            note:{type:"string", description:'"오전" 처럼 시각 대신 적힌 말'}}}},
+        note:{type:"string", description:"비대면, 발표자 같은 부연"}}}}},
+      required:["items"]},
+    execute: counted(dbSetWeek),
+  },
   {
     name: "add_leave",
     description: "연구실 구성원의 종일 연차를 등록한다. 이 연구실에는 반차가 없으므로 종일/반차를 되물을 필요가 없다. "
@@ -2031,9 +2171,13 @@ async function ask(text){
     const { text: answer } = await sampleFn(
       [{role:"user", content:RULES + factSheet()}, ...turns.slice(-8)], opts);
     turns.push({role:"assistant", content:answer});
-    if (canWrite && toolRan === 0 && /등록(했|됐|되었)|취소(했|됐|되었)|삭제(했|됐|되었)|추가(했|됐|되었)/.test(answer))
-      bubble("err", "⚠ 실제로 저장되지 않았습니다 — 위 답은 실행 결과가 아닙니다. "
-        + "다시 요청하거나, 캘린더에서 그 항목을 클릭해 직접 지우세요.");
+    if (canWrite && toolRan === 0 && (
+        /등록(했|됐|되었)|취소(했|됐|되었)|삭제(했|됐|되었)|추가(했|됐|되었)|반영(했|됐|되었)/.test(answer)
+        // 공지를 붙여넣었는데 아무 도구도 안 불렀으면 요약만 하고 만 것이다
+        || (/다음\s*주|이번\s*주|일정\s*안내/.test(text)
+            && (text.split("\n").length >= 2 || /개인미팅|스터디|세미나/.test(text)))))
+      bubble("err", "⚠ 캘린더가 바뀌지 않았습니다 — 위 답은 실행 결과가 아닙니다. "
+        + "\"위 내용대로 캘린더에 반영해줘\" 라고 한 번 더 말해보세요.");
   } catch (e) {
     if (e && e.code === "cancelled"){
       out.textContent = (e.text || "").trim() || "(중지됨)";
