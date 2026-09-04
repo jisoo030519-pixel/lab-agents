@@ -1288,13 +1288,20 @@ const RULES = `당신은 위 연구실의 일정 비서입니다. 묻는 말에 
 - 짧게 답하세요. 표가 필요 없으면 쓰지 마세요.
 - 발표 일정은 제1저자만 기록돼 있습니다. 공저자 정보는 자료에 없습니다.
 
-등록할 때 — 도구가 있으니 반드시 쓰세요. "직접 신청하세요"라고 돌려보내지 마세요.
+등록할 때 — 도구가 있으니 반드시 쓰세요.
 - 연차/반차 등록 → add_leave, 취소 → cancel_leave
 - 그 외 일정(미팅·마감·할 일) → add_event
-- 연도를 안 말하면 ${DATA.today.slice(0,4)}년으로 봅니다. "9/20" → "${DATA.today.slice(0,4)}-09-20"
+- 날짜와 시각은 들은 대로 넘기면 됩니다. "9/20", "9월 20일", "오후 2시" 다 알아듣습니다.
+  연도를 안 말하면 ${DATA.today.slice(0,4)}년입니다.
+- 이름은 한글 그대로 넘기세요. 영문으로 바꾸지 마세요.
 - 누구 것인지 안 밝히면 되묻고, 함부로 정하지 마세요.
-- 도구가 오류를 돌려주면 그 이유를 그대로 사용자에게 알려주세요.
-- 등록에 성공하면 무엇이 언제로 등록됐는지, 그리고 남은 연차가 몇 일이 됐는지 한 줄로 알려주세요.
+- 등록에 성공하면 무엇이 언제로 등록됐는지, 남은 연차가 몇 일이 됐는지 한 줄로 알려주세요.
+
+등록이 실패하면
+- 도구가 돌려준 오류 문구를 그대로 전하세요. 그 문구가 이미 무엇을 고쳐야 하는지 말해줍니다.
+- **원인을 추측해서 지어내지 마세요.** 특히 "한글이 문제인 것 같다", "영문 이름으로 해보라",
+  "직접 신청해라", "담당자에게 문의해라" 같은 말은 하지 마세요. 전부 사실이 아닙니다.
+- 오류 이유를 모르겠으면 "등록에 실패했습니다"라고만 하고 오류 문구를 그대로 보여주세요.
 
 --- 자료 ---
 `;
@@ -1304,24 +1311,58 @@ let store = null, canWrite = false;
 const logEl = () => document.getElementById("log");
 
 /* ---------- 저장소 (등록한 일정이 여기 남는다) ---------- */
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+/* 사람이 쓰는 여러 날짜 표기를 받아준다 — "9/20", "9월 20일", "2026.09.20" 모두 같은 뜻이다 */
+const pad2 = n => String(n).padStart(2, "0");
 function checkDate(v){
-  const s = String(v || "").trim();
-  if (!DATE_RE.test(s)) throw new Error(`날짜는 YYYY-MM-DD 형식이어야 합니다 (받은 값: "${v}")`);
+  let s = String(v == null ? "" : v).trim();
+  if (!s) throw new Error("날짜가 필요합니다");
+  const Y = TODAY.getFullYear();
+  let m;
+  if      (/^\d{4}-\d{2}-\d{2}$/.test(s)) { /* 그대로 */ }
+  else if ((m = s.match(/^(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})\.?$/)))  s = `${m[1]}-${pad2(m[2])}-${pad2(m[3])}`;
+  else if ((m = s.match(/^(\d{1,2})[.\-/](\d{1,2})\.?$/)))               s = `${Y}-${pad2(m[1])}-${pad2(m[2])}`;
+  else if ((m = s.match(/^(?:(\d{4})년\s*)?(\d{1,2})월\s*(\d{1,2})일?$/))) s = `${m[1] || Y}-${pad2(m[2])}-${pad2(m[3])}`;
+  else if ((m = s.match(/^(\d{4})(\d{2})(\d{2})$/)))                     s = `${m[1]}-${m[2]}-${m[3]}`;
+  else throw new Error(`날짜를 못 알아들었습니다: "${v}" — 2026-09-20 이나 9/20 처럼 적어주세요`);
+
   // UTC로 파싱해야 한다. 로컬(KST)로 파싱하고 toISOString()으로 비교하면
   // 9시간이 빠지면서 모든 날짜가 하루 밀려 전부 "없는 날짜"가 된다.
   const d = new Date(s + "T00:00:00Z");
   if (isNaN(d) || d.toISOString().slice(0,10) !== s) throw new Error(`${s} 는 없는 날짜입니다`);
   return s;
 }
-function checkLeavePerson(v){
-  const n = String(v || "").trim();
-  const names = leavePeople().map(p => p.name);
-  if (!names.includes(n))
-    throw new Error(`${n || "(이름 없음)"} 은(는) 연차 관리 대상이 아닙니다. 대상: ${names.join(", ")}`);
-  return n;
+
+/* 시각도 마찬가지 — "14시", "오후 2시", "2pm" 다 받는다. 빈 값이면 종일 일정 */
+function checkTime(v){
+  let s = String(v == null ? "" : v).trim();
+  if (!s) return "";
+  let m, h = null, mi = 0, pm = null;
+  if (/오후|저녁|pm/i.test(s)) pm = true;
+  if (/오전|아침|am/i.test(s)) pm = false;
+  s = s.replace(/오후|오전|저녁|아침|pm|am/gi, "").trim();
+  if      ((m = s.match(/^(\d{1,2}):(\d{2})$/)))     { h = +m[1]; mi = +m[2]; }
+  else if ((m = s.match(/^(\d{1,2})시\s*(\d{1,2})분?$/))) { h = +m[1]; mi = +m[2]; }
+  else if ((m = s.match(/^(\d{1,2})시(?:\s*반)?$/)))  { h = +m[1]; mi = /반/.test(s) ? 30 : 0; }
+  else if ((m = s.match(/^(\d{1,2})$/)))             { h = +m[1]; }
+  else throw new Error(`시각을 못 알아들었습니다: "${v}" — 14:00 이나 오후 2시 처럼 적어주세요`);
+  if (pm === true && h < 12) h += 12;
+  if (pm === false && h === 12) h = 0;
+  if (h > 23 || mi > 59) throw new Error(`${v} 는 없는 시각입니다`);
+  return pad2(h) + ":" + pad2(mi);
 }
-const leaveId = (name, date) => `${date}__${name}`;
+
+/* 이름도 유연하게 — "지수"처럼 일부만 말해도 후보가 하나면 받아준다 */
+function resolveName(v, names, what){
+  const raw = String(v == null ? "" : v).trim();
+  const q = raw.replace(/\s+/g, "");
+  if (!q) throw new Error(`누구의 ${what}인지 알려주세요. 대상: ${names.join(", ")}`);
+  if (names.includes(raw)) return raw;
+  const hit = names.filter(n => n === q || n.includes(q) || q.includes(n));
+  if (hit.length === 1) return hit[0];
+  if (hit.length > 1) throw new Error(`"${raw}" 가 여럿에 해당합니다: ${hit.join(", ")} — 이름을 다 적어주세요`);
+  throw new Error(`"${raw}" 은(는) ${what} 대상이 아닙니다. 대상: ${names.join(", ")}`);
+}
+const checkLeavePerson = v => resolveName(v, leavePeople().map(p => p.name), "연차");
 
 async function dbAddLeave({name, date, half, note}){
   const n = checkLeavePerson(name), d = checkDate(date);
@@ -1331,8 +1372,10 @@ async function dbAddLeave({name, date, half, note}){
   const cost = half ? 0.5 : 1;
   if (p && p.left < cost)
     throw new Error(`${n} 님의 남은 연차가 ${p.left}일이라 등록할 수 없습니다`);
+  // 문서 id 는 영문·숫자와 _ - . ~ : @ + 만 쓸 수 있다. 한글 이름을 id 에 넣으면
+  // 경로 문법 위반으로 TypeError 가 난다 — 자동 id 를 받고 이름은 본문에만 둔다.
   const rec = {name:n, date:d, half:!!half, note:String(note || ""), at:new Date().toISOString()};
-  await store.doc("leaves/" + leaveId(n, d)).set(rec);
+  await store.collection("leaves").add(rec);
   return {ok:true, ...rec, left: p ? p.left - cost : null};
 }
 
@@ -1344,7 +1387,7 @@ async function dbCancelLeave({name, date}){
       throw new Error(`${d} ${n} 연차는 이미 확정된 기록이라 이 화면에서 취소할 수 없습니다. leave.yaml 에서 지워야 합니다`);
     throw new Error(`${d} 에 ${n} 님의 연차 기록이 없습니다`);
   }
-  await store.doc("leaves/" + leaveId(n, d)).delete();
+  await store.collection("leaves").doc(mine.id).delete();
   return {ok:true, cancelled:{name:n, date:d}};
 }
 
@@ -1352,12 +1395,10 @@ async function dbAddEvent({title, date, time, member, kind, note}){
   const t = String(title || "").trim();
   if (!t) throw new Error("일정 제목이 필요합니다");
   const d = checkDate(date);
-  let tm = String(time || "").trim();
-  if (tm && !/^\d{2}:\d{2}$/.test(tm)) throw new Error(`시각은 HH:MM 형식이어야 합니다 (받은 값: "${time}")`);
+  const tm = checkTime(time);
   const who = (Array.isArray(member) ? member : (member ? [member] : []))
-    .map(x => String(x).trim()).filter(Boolean);
-  const unknown = who.filter(x => !(DATA.members || []).includes(x));
-  if (unknown.length) throw new Error(`명단에 없는 이름입니다: ${unknown.join(", ")}`);
+    .map(x => String(x).trim()).filter(Boolean)
+    .map(x => resolveName(x, DATA.members || [], "연구실 명단"));
   const rec = {title:t, date:d, time:tm, member:who, kind:String(kind || "etc"),
                note:String(note || ""), at:new Date().toISOString()};
   const ref = await store.collection("events").add(rec);
