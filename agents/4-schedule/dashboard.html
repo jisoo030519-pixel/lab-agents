@@ -1393,6 +1393,20 @@ for (const p of (DATA.personal || [])){
                  note: [o.note, p.note].filter(Boolean).join("; ")});
 }
 
+// 같은 날 같은 이름이 정기 회차와 등록된 일정 양쪽에 있으면 화면에 두 번 뜬다.
+// 예외(override)가 어긋나 있어도 눈에는 중복이 보이면 안 되므로, 여기서 정기 쪽을 접는다.
+const addedKeys = new Set(addedEvents.map(e => e.title + "|" + e.date));
+const personalShown = personal.filter(p => !addedKeys.has(p.title + "|" + p.due.slice(0,10)));
+
+// 등록된 일정끼리도 같은 것이 두 번 들어오지 않게 한 번 걸러낸다
+const seenAdded = new Set();
+const addedShown = addedEvents.filter(e => {
+  const k = e.title + "|" + e.date + "|" + (e.time || "");
+  if (seenAdded.has(k)) return false;
+  seenAdded.add(k);
+  return true;
+});
+
 EVENTS = [
   ...DATA.deadlines.filter(d => d.due).map(d => ({
     type:"due", date:d.due.slice(0,10), time:null, member:null,
@@ -1405,13 +1419,13 @@ EVENTS = [
     room:s.room, note:s.note, changedFrom:s.prev_start || null,
     sub:`${s.society} ${s.event}` + (s.session ? " · " + s.session : "")
   })),
-  ...personal.map(p => ({
+  ...personalShown.map(p => ({
     type:"mine", date:p.due.slice(0,10), time:(p.due.length>10 ? p.due.slice(11,16) : null),
     member:p.member || [], title:p.title, kindLabel:MINE_LABEL[p.kind] || p.kind,
     room:"", note:p.note, changedFrom:null, sub:"연구 일정", repeat:p.repeat || "",
     movedFrom:p.movedFrom || null
   })),
-  ...addedEvents.map(p => ({
+  ...addedShown.map(p => ({
     type:"mine", date:p.date, time:p.time || null, endTime:p.end || null,
     member:p.member || [], title:p.title, kindLabel:MINE_LABEL[p.kind] || p.kind || "기타",
     room:"", note:p.note || "", changedFrom:null, sub:"연구 일정", repeat:"", added:true,
@@ -1862,14 +1876,46 @@ function parseSlot(raw){
   return {day, start, end, note};
 }
 
+/* set_week 이 만든 일정과 예외를 그 주에서 걷어낸다.
+   이걸 안 하면 복구했을 때 원래 회차와 새로 만든 일정이 같이 남아 중복된다. */
+async function clearWeekArtifacts(weekIso, titles){
+  const want = titles ? new Set(titles) : null;
+  const mon = new Date(weekIso + "T00:00:00Z");
+  const inWeek = new Set(
+    Array.from({length:7}, (_, i) => isoOf(new Date(mon.getTime() + i * 86400000))));
+  const routines = new Set(routineTitles());
+  let n = 0;
+  for (const e of addedEvents){
+    // 태그(origin/week)만 믿으면 태그 없이 만들어진 항목이 남아 중복된다.
+    // 그래서 내용으로도 판별한다 — 그 주에 있는 정기 일정 제목의 일정.
+    const tagged = e.origin === "set_week" && e.week === weekIso;
+    const looksRoutine = routines.has(e.title) && inWeek.has(e.date);
+    if (!tagged && !looksRoutine) continue;
+    if (want && !want.has(e.routine || e.title)) continue;
+    await store.collection("events").doc(e.id).delete();
+    n++;
+  }
+  for (const o of addedOverrides){
+    if (o.origin !== "set_week" || o.week !== weekIso) continue;
+    if (want && !want.has(o.title)) continue;
+    await store.collection("overrides").doc(o.id).delete();
+    n++;
+  }
+  return n;
+}
+
 async function dbSetWeek({week, items}){
   if (!Array.isArray(items) || !items.length)
     throw new Error("반영할 항목이 없습니다");
   const mon = weekMonday(week);
+  const monIso = isoOf(mon);
   const days = {};
   for (let i = 0; i < 7; i++) days[(i + 1) % 7] = isoOf(new Date(mon.getTime() + i * 86400000));
   const weekDates = new Set(Object.values(days));
   const done = [];
+
+  // 같은 주에 다시 반영하면 앞서 만든 것부터 치운다 (두 번 눌러도 중복되지 않게)
+  await clearWeekArtifacts(monIso, null);
 
   for (const raw of items){
     const title = String((raw && raw.title) || "").trim();
@@ -1889,6 +1935,7 @@ async function dbSetWeek({week, items}){
         if (!addedOverrides.some(o => o.title === name && o.date === d)){
           await store.collection("overrides").add({
             title:name, date:d, action:"skip", to:"",
+            origin:"set_week", week:monIso,
             note:"다음주 공지 반영", at:new Date().toISOString()});
         }
         cleared++;
@@ -1907,6 +1954,7 @@ async function dbSetWeek({week, items}){
       const bits = [slotNote, raw.note].filter(Boolean).join(", ");
       const rec = {
         title: name || title, date, time: start, end,
+        origin: "set_week", routine: name || title, week: monIso,
         member: [], kind: name ? "meeting" : "etc",
         note: [bits, keptOrder ? "순서: " + keptOrder.join(" → ") : ""].filter(Boolean).join(" / "),
         at: new Date().toISOString(),
@@ -1964,12 +2012,37 @@ async function dbMoveWeek({title, date, to_date, to_time, note}){
   return {ok:true, title:name, from:fmtDate(d), to:fmtDate(nd) + (nt ? " " + nt : "")};
 }
 
-async function dbRestoreWeek({title, date}){
-  const {name, date:d} = findRoutine(title, date);
-  const o = addedOverrides.find(x => x.title === name && x.date === d);
-  if (!o) throw new Error(`${fmtDate(d)} ${name} 은 변경된 적이 없습니다`);
-  await store.collection("overrides").doc(o.id).delete();
-  return {ok:true, restored:name, dateLabel:fmtDate(d)};
+async function dbRestoreWeek({title, date, week}){
+  // 어느 주인지부터 정한다. date 를 주면 그 날이 속한 주, 아니면 week.
+  const mon = weekMonday(date || week);
+  const monIso = isoOf(mon);
+  const weekDates = new Set(
+    Array.from({length:7}, (_, i) => isoOf(new Date(mon.getTime() + i * 86400000))));
+
+  const only = title ? matchRoutine(title) : null;
+  if (title && !only) throw new Error(`"${title}" 라는 정기 일정이 없습니다. 있는 것: ${routineTitles().join(", ")}`);
+
+  // set_week 이 만든 일정과 예외를 함께 걷어낸다.
+  // 예외만 지우면 새로 만든 일정이 남아 원래 회차와 중복된다.
+  let removed = await clearWeekArtifacts(monIso, only ? [only] : null);
+
+  // 손으로 넣은 skip/move 도 그 주 것은 되돌린다
+  for (const o of addedOverrides){
+    if (o.origin === "set_week") continue;
+    if (!weekDates.has(o.date)) continue;
+    if (only && o.title !== only) continue;
+    await store.collection("overrides").doc(o.id).delete();
+    removed++;
+  }
+  if (!removed)
+    throw new Error(`${monIso} 주에 ${only || "정기 일정"} 은 바뀐 적이 없습니다`);
+
+  const back = (only ? [only] : routineTitles())
+    .map(t => {
+      const occ = (DATA.personal || []).find(p => p.title === t && weekDates.has(p.due.slice(0,10)));
+      return occ ? `${t}: ${fmtDate(occ.due.slice(0,10))}` : null;
+    }).filter(Boolean);
+  return {ok:true, week:`${monIso} 주`, removed, restored:back};
 }
 
 async function dbAddEvent({title, date, time, member, kind, note}){
@@ -2104,10 +2177,12 @@ const TOOLS = [
   },
   {
     name: "restore_week",
-    description: "휴강·이동 처리한 회차를 원래대로 되돌린다.",
+    description: "그 주를 원래 정기 일정대로 되돌린다. set_week 으로 만든 일정과 휴강·이동 처리를 함께 지운다. "
+      + "title 을 주면 그 일정만, 생략하면 그 주 전체를 되돌린다.",
     inputSchema: {type:"object", properties:{
-      title:{type:"string"}, date:{type:"string", description:"원래 잡혀 있던 날"}},
-      required:["title","date"]},
+      title:{type:"string", description:"되돌릴 일정. 전부 되돌리려면 생략"},
+      date:{type:"string", description:"그 주의 아무 날짜"},
+      week:{type:"string", description:'"next" / "this" / 날짜. date 를 주면 생략 가능'}}},
     execute: counted(dbRestoreWeek),
   },
   {
