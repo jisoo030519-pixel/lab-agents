@@ -16,6 +16,7 @@
   python watch.py web                         대시보드용 data.json 생성
   python watch.py sync                        data.json 을 dashboard.html 에 주입
   python watch.py publish                     공유 DB(shared/lab.db)에 일정 내보내기
+  python watch.py site                        공개용 정적 사이트 생성 (docs/)
   python watch.py show                        저장된 전체 데이터
   python watch.py prune-members               명단에서 빠진 사람의 발표 정리
   python watch.py reset                       수집된 일정 전부 비우기 (설정은 유지)
@@ -1168,6 +1169,54 @@ def cmd_leave():
             print("  %-5s %.1f일" % (n, v))
 
 
+SITE = SHARED.parent / "docs"          # GitHub Pages 가 그대로 서비스하는 폴더
+
+
+def cmd_site():
+    """공개용 정적 사이트를 만든다 (docs/).
+
+    대시보드와 같은 파일을 쓴다. 그 페이지는 Claude 런타임이 없으면 채팅·삭제를
+    스스로 숨기므로, 정적으로 올려도 보기 전용으로 알아서 동작한다.
+    HTML 한 벌만 관리하면 되도록 일부러 이렇게 했다.
+    """
+    cmd_sync()
+    html = (ROOT / "dashboard.html").read_text(encoding="utf-8")
+
+    title = "연구실 일정"
+    m = re.search(r"<title>(.*?)</title>", html)
+    if m:
+        title = m.group(1)
+        html = html.replace(m.group(0), "", 1)
+
+    SITE.mkdir(exist_ok=True)
+    (SITE / "index.html").write_text(
+        "<!doctype html>\n<html lang=\"ko\">\n<head>\n"
+        "<meta charset=\"utf-8\">\n"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+        "<meta name=\"robots\" content=\"noindex\">\n"
+        "<title>%s</title>\n"
+        "<style>:root{color-scheme:light dark}body{margin:0;font:14px system-ui}"
+        "img{max-width:100%%}[hidden]{display:none!important}</style>\n"
+        "</head>\n<body>\n%s\n</body>\n</html>\n" % (title, html),
+        encoding="utf-8")
+
+    # 캘린더도 함께 올린다 — 구글 캘린더에서 URL 구독이 가능해진다
+    cal = SITE / "calendars"
+    cal.mkdir(exist_ok=True)
+    for f in cal.glob("*.ics"):
+        f.unlink()
+    n = 0
+    for f in sorted(CALENDARS.glob("*.ics")):
+        (cal / f.name).write_text(f.read_text(encoding="utf-8"), encoding="utf-8")
+        n += 1
+
+    (SITE / ".nojekyll").write_text("", encoding="utf-8")   # _ 로 시작하는 파일 보호
+
+    print("정적 사이트 생성: %s" % SITE)
+    print("  index.html (보기 전용) + 캘린더 %d개" % n)
+    print("  GitHub 저장소 Settings > Pages 에서 main 브랜치의 /docs 를 지정하세요.")
+
+
 def cmd_show():
     s = load_state()
     print(json.dumps({"deadlines": s["deadlines"], "sessions": s["sessions"]},
@@ -1245,6 +1294,7 @@ def cmd_reset():
 
 CMDS = {"list": cmd_list, "report": cmd_report, "ics": cmd_ics,
         "web": cmd_web, "sync": cmd_sync, "publish": cmd_publish, "leave": cmd_leave,
+        "site": cmd_site,
         "show": cmd_show, "reset": cmd_reset, "rotation": cmd_rotation,
         "prune-members": cmd_prune_members}
 ARG_CMDS = {"scan-pdf": cmd_scan_pdf,

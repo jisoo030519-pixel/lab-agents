@@ -13,3 +13,5 @@ agents/*/data.json
 
 # OMC 런타임 상태 (운영 아티팩트)
 .omc/
+
+# 정적 사이트는 생성물이지만 GitHub Pages 가 서비스하므로 커밋한다 (docs/ 는 제외하지 않음)
