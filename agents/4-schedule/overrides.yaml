@@ -16,4 +16,16 @@
 #
 # 대시보드 "일정 물어보기"에서 말로 바꾸면 여기 자동으로 들어온다.
 
-items: []
+items:
+- title: 랩세미나
+  date: '2026-09-11'
+  action: skip
+  note: 다음주 공지 반영
+- title: 개인미팅
+  date: '2026-09-08'
+  action: skip
+  note: 다음주 공지 반영
+- title: 학부스터디
+  date: '2026-09-08'
+  action: skip
+  note: 다음주 공지 반영

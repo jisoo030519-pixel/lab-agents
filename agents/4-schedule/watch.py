@@ -212,8 +212,15 @@ def load_personal():
         return []
     ov = load_overrides()
 
-    def apply(item):
-        """예외를 적용. 취소된 회차면 None."""
+    def apply(item, series=True):
+        """예외를 적용. 취소된 회차면 None.
+
+        정기 일정의 회차에만 적용한다. 일회성으로 따로 적어 넣은 항목까지
+        건드리면, "그 주 개인미팅 휴강 + 대신 월요일에 한 번" 같은 흔한 공지가
+        휴강만 남고 대체 회차까지 지워진다.
+        """
+        if not series:
+            return item
         key = (item["title"], item["due"][:10])
         rule = ov.get(key)
         if not rule:
@@ -253,7 +260,8 @@ def load_personal():
         series = "%s|%s" % (base["title"], base["due"][:10])   # 학기 내내 고정
         if rotate:
             base["order"] = rotation_for(series, base["member"], 0)
-        first_item = apply(base)
+        is_series = rep in ("monthly", "weekly") and until is not None
+        first_item = apply(base, is_series)
         if first_item is not None:
             out.append(first_item)
         if rep not in ("monthly", "weekly") or until is None:
@@ -1313,6 +1321,124 @@ SITE_EXTRA = u"""
 """
 
 
+def cmd_pull(path):
+    """대시보드에서 입력한 것을 YAML 로 되받는다.
+
+    채팅으로 등록한 연차·일정·휴강은 아티팩트 DB 에만 있다. 리포트·캘린더·
+    배포본은 YAML 을 보고 만들기 때문에, 되받지 않으면 화면에는 있는데
+    나눠준 파일에는 없는 상태가 된다. 실제로 그 일이 났다.
+
+    입력은 DB 를 그대로 떠낸 JSON:
+      {"events":[...], "overrides":[...], "leaves":[...]}
+    같은 항목을 두 번 넣어도 늘어나지 않는다 (키로 비교).
+    """
+    dump = json.loads(Path(path).read_text(encoding="utf-8"))
+    added = {"personal": 0, "overrides": 0, "leaves": 0}
+    skipped = 0
+
+    # ---- overrides.yaml ----
+    ov = yaml.safe_load(OVERRIDES.read_text(encoding="utf-8")) or {}
+    items = ov.get("items") or []
+    have = set((i.get("title"), iso_str(i.get("date"))) for i in items)
+    for o in dump.get("overrides") or []:
+        key = (o.get("title"), iso_str(o.get("date")))
+        if key in have:
+            skipped += 1
+            continue
+        row = {"title": o["title"], "date": iso_str(o["date"]),
+               "action": o.get("action", "skip")}
+        if o.get("to"):
+            row["to"] = o["to"]
+        if o.get("note"):
+            row["note"] = o["note"]
+        items.append(row)
+        have.add(key)
+        added["overrides"] += 1
+    ov["items"] = items
+    _rewrite_yaml(OVERRIDES, "items", ov)
+
+    # ---- personal.yaml ----
+    pe = yaml.safe_load(PERSONAL.read_text(encoding="utf-8")) or {}
+    pitems = pe.get("items") or []
+    # 반복 항목은 "그 날 하나"가 아니라 학기 전체의 틀이다. 중복 판정에서 빼야 한다.
+    # 빼지 않으면 개인미팅 반복(9/8 시작)이 9/8 일회성 등록을 삼켜버리는데,
+    # 마침 그 날은 휴강 처리돼 있어 화면에서 통째로 사라진다.
+    phave = set((i.get("title"), iso_str(i.get("due"))[:10])
+                for i in pitems if not i.get("repeat"))
+    for e in dump.get("events") or []:
+        d = iso_str(e["date"])
+        key = (e.get("title"), d)
+        if key in phave:
+            skipped += 1
+            continue
+        due = d + ("T" + e["time"] if e.get("time") else "")
+        # 정기 일정의 한 회차로 등록된 것이면 원래 series 의 kind 를 물려받는다.
+        # 대시보드는 무엇이든 meeting 으로 넣기 때문에 랩세미나가 "미팅" 으로 뜬다.
+        kind = e.get("kind") or "etc"
+        base = next((i for i in pitems
+                     if i.get("repeat") and i.get("title") == e.get("routine")), None)
+        if base and base.get("kind"):
+            kind = base["kind"]
+        row = {"title": e["title"], "kind": kind, "due": due}
+        mem = e.get("member") or ""
+        row["member"] = mem if mem else ""
+        if e.get("note"):
+            row["note"] = e["note"]
+        pitems.append(row)
+        phave.add(key)
+        added["personal"] += 1
+    pe["items"] = pitems
+    _rewrite_yaml(PERSONAL, "items", pe)
+
+    # ---- leave.yaml ----
+    lv = yaml.safe_load(LEAVE.read_text(encoding="utf-8")) or {}
+    lrows = lv.get("leaves") or []
+    lhave = set((r.get("name"), iso_str(r.get("date"))) for r in lrows)
+    for l in dump.get("leaves") or []:
+        key = (l.get("name"), iso_str(l.get("date")))
+        if key in lhave:
+            skipped += 1
+            continue
+        row = {"name": l["name"], "date": iso_str(l["date"])}
+        if l.get("note"):
+            row["note"] = l["note"]
+        lrows.append(row)
+        lhave.add(key)
+        added["leaves"] += 1
+    lv["leaves"] = lrows
+    _rewrite_yaml(LEAVE, "leaves", lv)
+
+    print("DB → YAML 되받기")
+    print("  personal.yaml  +%d" % added["personal"])
+    print("  overrides.yaml +%d" % added["overrides"])
+    print("  leave.yaml     +%d" % added["leaves"])
+    if skipped:
+        print("  이미 있어서 건너뜀 %d건" % skipped)
+    if any(added.values()):
+        print("  이어서: python watch.py ics && python watch.py offline")
+
+
+def _rewrite_yaml(path, key, data):
+    """설명 주석은 살리고 해당 항목만 갈아 끼운다.
+
+    yaml.safe_dump 로 통째로 다시 쓰면 파일 맨 위의 사용법 주석이 전부
+    날아간다. 그 주석 보고 손으로 고치는 파일이라 지우면 안 된다.
+    """
+    text = path.read_text(encoding="utf-8")
+    body = yaml.safe_dump({key: data.get(key) or []}, allow_unicode=True,
+                          default_flow_style=False, sort_keys=False, width=100)
+    m = re.search(r"^%s:.*" % re.escape(key), text, re.M)
+    if not m:
+        path.write_text(text.rstrip() + "\n\n" + body, encoding="utf-8")
+        return
+    # key: 부터 파일 끝(또는 다음 최상위 키)까지를 갈아 끼운다
+    rest = text[m.end():]
+    nxt = re.search(r"^[A-Za-z_][\w-]*:", rest, re.M)
+    tail = rest[nxt.start():] if nxt else ""
+    path.write_text(text[:m.start()] + body + ("\n" + tail if tail else ""),
+                    encoding="utf-8")
+
+
 OFFLINE_EXTRA = u"""
 <style>
 .addon{max-width:1180px;margin:26px auto 0;padding:0 18px;font:14px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
@@ -1646,7 +1772,7 @@ CMDS = {"list": cmd_list, "report": cmd_report, "ics": cmd_ics,
 # `rotation 2026-09-08` 이 날짜를 씹고 엉뚱한 회차를 보여준 적이 있다.
 OPT_CMDS = {"month": cmd_month, "site": cmd_site, "qr": cmd_qr,
             "offline": cmd_offline, "rotation": cmd_rotation}
-ARG_CMDS = {"scan-pdf": cmd_scan_pdf,
+ARG_CMDS = {"scan-pdf": cmd_scan_pdf, "pull": cmd_pull,
             "upsert-deadlines": cmd_upsert_deadlines,
             "upsert-sessions": cmd_upsert_sessions}
 
