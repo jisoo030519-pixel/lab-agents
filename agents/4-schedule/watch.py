@@ -490,8 +490,26 @@ SESSION_REQ = ("society", "event", "member", "title", "kind", "start")
 
 
 def _load_items(path):
-    data = json.loads(Path(path).read_text(encoding="utf-8"))
-    return data.get("items", []) if isinstance(data, dict) else data
+    """JSON 도 YAML 도 받는다.
+
+    이 저장소의 다른 설정 파일은 전부 YAML 인데 여기만 JSON 이라
+    손으로 한 건 넣을 때마다 파서 오류가 났다. 둘 다 받게 한다.
+    """
+    text = Path(path).read_text(encoding="utf-8")
+    try:
+        data = json.loads(text)
+    except ValueError:
+        data = yaml.safe_load(text)
+    if data is None:
+        return []
+    items = data.get("items", []) if isinstance(data, dict) else data
+    # YAML 은 `due: 2026-09-18` 을 date 객체로 읽는다. 뒤에서 문자열로 자르므로
+    # 여기서 ISO 문자열로 통일해 둔다.
+    for e in items:
+        for k in ("due", "end", "start", "finish"):
+            if k in e:
+                e[k] = iso_str(e[k])
+    return items
 
 
 def _line(e, label_map, cmpfield):

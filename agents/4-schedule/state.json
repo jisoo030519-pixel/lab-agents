@@ -32,6 +32,28 @@
       "note": "ICCAS 확장초록 + IJCAS 저널본(6쪽 이상) 동시 제출. 종료",
       "society": "ICCAS",
       "url": "https://2026.iccas.org/authors-guideline-for-initial-submission/"
+    },
+    {
+      "due": "2026-08-07",
+      "event": "NAT 2026 (제7회 Nuclear Analytical Techniques)",
+      "first_seen": "2026-09-04",
+      "kind": "earlybird",
+      "last_changed": "2026-09-04",
+      "last_seen": "2026-09-04",
+      "note": "종료",
+      "society": "NAT",
+      "url": "https://nat2026.kr/"
+    },
+    {
+      "due": "2026-08-05",
+      "event": "2026 가을 총회 및 국제학술대회",
+      "first_seen": "2026-09-04",
+      "kind": "abstract",
+      "last_changed": "2026-09-04",
+      "last_seen": "2026-09-04",
+      "note": "접수기간 5/14~8/5 (종료)",
+      "society": "한국화학공학회",
+      "url": "https://www.kiche.or.kr/conference/introduce"
     }
   ],
   "deadlines": {
@@ -45,6 +67,17 @@
       "note": "ICCAS 최종본. 종료",
       "society": "ICCAS",
       "url": "https://2026.iccas.org/authors-guideline-for-initial-submission/"
+    },
+    "ICCAS|ICCAS 2026 (제26회)|earlybird": {
+      "due": "2026-09-18",
+      "event": "ICCAS 2026 (제26회)",
+      "first_seen": "2026-09-08",
+      "kind": "earlybird",
+      "last_changed": "2026-09-08",
+      "last_seen": "2026-09-08",
+      "note": "Advanced registration 'By September 18, 2026'. 이 날 이후는 late 요금이고 환불도 안 됩니다. 발표자는 최종본 마감 전까지 저자 1명 이상 사전등록 필수",
+      "society": "ICCAS",
+      "url": "https://2026.iccas.org/registration-guideline/"
     },
     "ICCAS|ICCAS 2026 (제26회)|event": {
       "due": "2026-10-27",
@@ -80,17 +113,6 @@
       "society": "NAT",
       "url": "https://nat2026.kr/"
     },
-    "NAT|NAT 2026 (제7회 Nuclear Analytical Techniques)|earlybird": {
-      "due": "2026-08-07",
-      "event": "NAT 2026 (제7회 Nuclear Analytical Techniques)",
-      "first_seen": "2026-09-04",
-      "kind": "earlybird",
-      "last_changed": "2026-09-04",
-      "last_seen": "2026-09-04",
-      "note": "종료",
-      "society": "NAT",
-      "url": "https://nat2026.kr/"
-    },
     "NAT|NAT 2026 (제7회 Nuclear Analytical Techniques)|event": {
       "due": "2026-09-06",
       "end": "2026-09-10",
@@ -102,17 +124,6 @@
       "note": "서울 aT센터",
       "society": "NAT",
       "url": "https://nat2026.kr/overview.html"
-    },
-    "한국화학공학회|2026 가을 총회 및 국제학술대회|abstract": {
-      "due": "2026-08-05",
-      "event": "2026 가을 총회 및 국제학술대회",
-      "first_seen": "2026-09-04",
-      "kind": "abstract",
-      "last_changed": "2026-09-04",
-      "last_seen": "2026-09-04",
-      "note": "접수기간 5/14~8/5 (종료)",
-      "society": "한국화학공학회",
-      "url": "https://www.kiche.or.kr/conference/introduce"
     },
     "한국화학공학회|2026 가을 총회 및 국제학술대회|earlybird": {
       "due": "2026-09-04",
