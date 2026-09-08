@@ -22,6 +22,7 @@
   python watch.py reset                       수집된 일정 전부 비우기 (설정은 유지)
 """
 import hashlib
+import io
 import json
 import random
 import sqlite3
@@ -800,6 +801,17 @@ def vevent(uid, summary, dtstart, allday, end=None, location="", desc="", alarms
     return L
 
 
+def write_ics(path, text):
+    """ICS 는 반드시 CRLF 로 저장한다 (RFC 5545).
+
+    write_text 로 그냥 쓰면 윈도우에서 줄바꿈이 한 번 더 번역돼
+    CRLF 가 CR CR LF 가 된다. 줄마다 빈 줄이 하나씩 끼는 셈이라
+    캘린더 앱에 따라 깨지거나 통째로 거부한다. newline="" 로 막는다.
+    """
+    with io.open(str(path), "w", encoding="utf-8", newline="") as f:
+        f.write(text)
+
+
 def build_ics(name, events):
     L = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//conf-agent//KR//",
          "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "X-WR-CALNAME:" + esc(name),
@@ -890,14 +902,13 @@ def cmd_ics():
         if l["name"] in per_member:
             per_member[l["name"]] += ev
 
-    (CALENDARS / "all.ics").write_text(build_ics(lab + " 연구·학회 일정", shared), encoding="utf-8")
+    write_ics(CALENDARS / "all.ics", build_ics(lab + " 연구·학회 일정", shared))
     made = ["calendars/all.ics"]
     for name, evs in per_member.items():
         if not evs:
             continue
         safe = re.sub(r"[^\w가-힣.-]", "_", name)
-        (CALENDARS / (safe + ".ics")).write_text(
-            build_ics("학회 일정 — " + name, evs), encoding="utf-8")
+        write_ics(CALENDARS / (safe + ".ics"), build_ics("학회 일정 — " + name, evs))
         made.append("calendars/%s.ics" % safe)
 
     print("캘린더 생성:")
@@ -1302,6 +1313,141 @@ SITE_EXTRA = u"""
 """
 
 
+OFFLINE_EXTRA = u"""
+<style>
+.addon{max-width:1180px;margin:26px auto 0;padding:0 18px;font:14px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
+.addon section{border:1px solid #e2e5ea;border-radius:14px;padding:18px 20px;margin-bottom:14px;background:#fff}
+.addon h2{margin:0 0 4px;font-size:15px;letter-spacing:-.01em}
+.addon p{margin:0 0 12px;color:#5b6270;font-size:13px}
+.addon .hint{margin:12px 0 0;font-size:12px;color:#7b828e}
+.subgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.subrow{display:flex;align-items:center;gap:8px;border:1px solid #e6e9ee;border-radius:10px;padding:7px 9px}
+.subrow b{flex:1;font-weight:600;font-size:13px}
+.subrow button{font:inherit;font-size:12px;padding:5px 11px;border:0;border-radius:7px;
+  background:#1d4ed8;color:#fff;cursor:pointer}
+.subrow button:active{opacity:.75}
+.subrow .cnt{font-size:11px;color:#8b929e;font-variant-numeric:tabular-nums}
+.steps{margin:0;padding-left:18px;color:#4b525e;font-size:13px}
+.steps li{margin:3px 0}
+@media (prefers-color-scheme:dark){
+ .addon section{background:#171a1f;border-color:#2a2f38}
+ .addon p,.steps{color:#9aa2ae} .addon .hint{color:#7b828e}
+ .subrow{border-color:#2a2f38}
+}
+</style>
+<div class="addon">
+  <section>
+    <h2>내 일정 폰 캘린더에 넣기</h2>
+    <p>이름을 누르면 캘린더 파일이 저장됩니다. 그 파일을 열면 폰 캘린더에 일정이 들어가고,
+       마감 7일·1일 전과 발표 1일 전·1시간 전에 알림이 옵니다.</p>
+    <div class="subgrid" id="subGrid"></div>
+    <p class="hint">이 파일은 <b id="snapWhen"></b> 기준입니다. 일정이 바뀌면 담당자에게 새 파일을 받으세요.
+      한 번 넣은 일정은 자동으로 갱신되지 않습니다 — 새로 받아서 다시 열면 같은 일정은 덮어써집니다.</p>
+  </section>
+  <section>
+    <h2>이 파일을 폰에서 보려면</h2>
+    <ol class="steps">
+      <li>단톡방에 온 파일을 눌러 열면 그대로 보입니다.</li>
+      <li>아이폰: 공유 <span aria-hidden="true">⬆︎</span> → "파일에 저장" 해두면 다음에 바로 열립니다.</li>
+      <li>안드로이드: 다운로드 폴더에서 열면 됩니다. 브라우저로 열어야 제대로 보입니다.</li>
+    </ol>
+  </section>
+</div>
+<script>
+(function(){
+  var when = document.getElementById("snapWhen");
+  if (when && typeof DATA !== "undefined") when.textContent = DATA.today;
+  var g = document.getElementById("subGrid");
+  if (!g || typeof ICS === "undefined") return;
+  var names = Object.keys(ICS);
+  g.innerHTML = names.map(function(n){
+    var cnt = (ICS[n].match(/BEGIN:VEVENT/g) || []).length;
+    return '<div class="subrow"><b>' + n + '</b>'
+         + '<span class="cnt">' + cnt + '건</span>'
+         + '<button type="button" data-n="' + n + '">저장</button></div>';
+  }).join("");
+  g.addEventListener("click", function(ev){
+    var b = ev.target.closest("button[data-n]");
+    if (!b) return;
+    var n = b.getAttribute("data-n");
+    /* 파일을 안에 품고 있으니 인터넷 없이도 저장된다. */
+    var blob = new Blob([ICS[n]], {type:"text/calendar;charset=utf-8"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = n + ".ics";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+    b.textContent = "저장됨";
+    setTimeout(function(){ b.textContent = "저장"; }, 2000);
+  });
+})();
+</script>
+"""
+
+
+def cmd_offline(dest=None):
+    """서버 없이 파일 하나로 끝나는 일정판을 만든다.
+
+    GitHub 도 호스팅도 없이, 단톡방에 파일 하나 던지면 되는 형태다.
+    캘린더 12개를 HTML 안에 그대로 품고 있어서 인터넷이 끊겨도 열리고,
+    이름을 누르면 그 자리에서 .ics 가 저장된다.
+
+    공개 사이트(cmd_site)와 달리 연차를 그대로 둔다 — 링크가 떠도는 게 아니라
+    담당자가 건네주는 파일이라 받는 사람이 정해져 있다.
+    대신 파일이 밖으로 나가면 연차도 같이 나간다는 건 알고 써야 한다.
+    """
+    cmd_sync()
+    html = (ROOT / "dashboard.html").read_text(encoding="utf-8")
+
+    title = "연구실 일정"
+    m = re.search(r"<title>(.*?)</title>", html)
+    if m:
+        title = m.group(1)
+        html = html.replace(m.group(0), "", 1)
+
+    ics = {}
+    for f in CALENDARS.glob("*.ics"):
+        name = "전체 일정" if f.stem == "all" else f.stem
+        # newline="" 로 읽어야 CRLF 가 살아남는다. 그냥 read_text 하면 LF 로 바뀌고,
+        # 그 상태로 품고 있다가 저장하면 규격에 안 맞는 .ics 가 나간다.
+        with io.open(str(f), encoding="utf-8", newline="") as fh:
+            ics[name] = fh.read()
+    if not ics:
+        raise SystemExit("캘린더가 없습니다. 먼저 python watch.py ics 를 실행하세요.")
+    # 전체를 맨 앞에, 나머지는 명단 순서대로. 파일명 가나다순으로 두면
+    # 화면 위쪽 이름표 순서와 어긋나서 자기 이름을 눈으로 못 찾는다.
+    ordered = {}
+    if "전체 일정" in ics:
+        ordered["전체 일정"] = ics.pop("전체 일정")
+    for m in load_members()[1]:
+        if m["name"] in ics:
+            ordered[m["name"]] = ics.pop(m["name"])
+    ordered.update(ics)   # 명단에 없는 파일이 남아 있으면 뒤에 붙인다
+    # </script> 가 문자열 안에 있으면 브라우저가 스크립트를 거기서 끊는다.
+    blob = json.dumps(ordered, ensure_ascii=False).replace("<", "\\u003c")
+
+    out = Path(dest) if dest else (SHARED.parent / ("연구실_일정_%s.html" % date.today()))
+    out.write_text(
+        "<!doctype html>\n<html lang=\"ko\">\n<head>\n"
+        "<meta charset=\"utf-8\">\n"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, "
+        "viewport-fit=cover\">\n"
+        "<meta name=\"robots\" content=\"noindex\">\n"
+        "<meta name=\"theme-color\" content=\"#1d4ed8\">\n"
+        "<title>%s</title>\n"
+        "<style>:root{color-scheme:light dark}body{margin:0;font:14px system-ui}"
+        "img{max-width:100%%}[hidden]{display:none!important}</style>\n"
+        "</head>\n<body>\n%s\n<script>\nconst ICS = %s;\n</script>\n%s\n</body>\n</html>\n"
+        % (title, html, blob, OFFLINE_EXTRA),
+        encoding="utf-8")
+
+    kb = out.stat().st_size / 1024.0
+    print("파일 하나짜리 일정판: %s" % out)
+    print("  캘린더 %d개를 안에 품고 있습니다 (%.0f KB, 인터넷 없이 열립니다)" % (len(ordered), kb))
+    print("  ⚠ 연차 현황이 들어 있습니다. 연구실 안에서만 돌리세요.")
+    return out
+
+
 def cmd_qr(url=None):
     """주소를 QR 로 만든다 (docs/qr.svg, qr.png).
 
@@ -1397,7 +1543,9 @@ def cmd_site(base_url=None):
         f.unlink()
     n = 0
     for f in sorted(CALENDARS.glob("*.ics")):
-        (cal / f.name).write_text(f.read_text(encoding="utf-8"), encoding="utf-8")
+        # 그대로 복사한다. 텍스트로 읽고 쓰면 윈도우에서 CRLF 가 CR CR LF 로 불어나
+        # 규격에 안 맞는 캘린더가 배포된다.
+        (cal / f.name).write_bytes(f.read_bytes())
         n += 1
 
     (SITE / ".nojekyll").write_text("", encoding="utf-8")   # _ 로 시작하는 파일 보호
@@ -1497,7 +1645,7 @@ CMDS = {"list": cmd_list, "report": cmd_report, "ics": cmd_ics,
 # 인자를 줘도 되고 안 줘도 되는 것들. CMDS 에 넣어두면 인자가 조용히 무시된다 —
 # `rotation 2026-09-08` 이 날짜를 씹고 엉뚱한 회차를 보여준 적이 있다.
 OPT_CMDS = {"month": cmd_month, "site": cmd_site, "qr": cmd_qr,
-            "rotation": cmd_rotation}
+            "offline": cmd_offline, "rotation": cmd_rotation}
 ARG_CMDS = {"scan-pdf": cmd_scan_pdf,
             "upsert-deadlines": cmd_upsert_deadlines,
             "upsert-sessions": cmd_upsert_sessions}
