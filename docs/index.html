@@ -2,8 +2,15 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
+<meta name="theme-color" content="#1d4ed8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="연구실 일정">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
 <title>랩 학회 일정판</title>
 <style>:root{color-scheme:light dark}body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -283,11 +290,236 @@ footer code{font-family:"IBM Plex Mono",monospace; background:var(--surface-2); 
 
 <script>
 const DATA = /*DATA*/{
-  "lab": "인천대 연구실",
-  "generated": "2026-09-08T11:18:03",
-  "today": "2026-09-08",
-  "members": [
-    "김종우",
+ "lab": "인천대 연구실",
+ "generated": "2026-09-08T13:59:13",
+ "today": "2026-09-08",
+ "members": [
+  "김종우",
+  "현지수",
+  "이승훈",
+  "안재현",
+  "이나경",
+  "오희진",
+  "김소윤",
+  "나승민",
+  "이영한",
+  "강서현",
+  "김균영"
+ ],
+ "deadlines": [
+  {
+   "due": "2026-08-31",
+   "event": "ICCAS 2026 (제26회)",
+   "first_seen": "2026-09-04",
+   "kind": "camera_ready",
+   "last_changed": "2026-09-04",
+   "last_seen": "2026-09-04",
+   "note": "ICCAS 최종본. 종료",
+   "society": "ICCAS",
+   "url": "https://2026.iccas.org/authors-guideline-for-initial-submission/"
+  },
+  {
+   "due": "2026-09-04",
+   "event": "2026 가을 총회 및 국제학술대회",
+   "first_seen": "2026-09-04",
+   "kind": "earlybird",
+   "last_changed": "2026-09-04",
+   "last_seen": "2026-09-04",
+   "note": "학술대회안내 페이지 기준 사전등록 5/14~9/4 — 오늘 마감이므로 직접 확인 필요",
+   "society": "한국화학공학회",
+   "url": "https://www.kiche.or.kr/conference/registration"
+  },
+  {
+   "due": "2026-09-06",
+   "end": "2026-09-10",
+   "event": "NAT 2026 (제7회 Nuclear Analytical Techniques)",
+   "first_seen": "2026-09-04",
+   "kind": "event",
+   "last_changed": "2026-09-04",
+   "last_seen": "2026-09-04",
+   "note": "서울 aT센터",
+   "society": "NAT",
+   "url": "https://nat2026.kr/overview.html"
+  },
+  {
+   "due": "2026-09-18",
+   "event": "ICCAS 2026 (제26회)",
+   "first_seen": "2026-09-08",
+   "kind": "earlybird",
+   "last_changed": "2026-09-08",
+   "last_seen": "2026-09-08",
+   "note": "Advanced registration 'By September 18, 2026'. 이 날 이후는 late 요금이고 환불도 안 됩니다. 발표자는 최종본 마감 전까지 저자 1명 이상 사전등록 필수",
+   "society": "ICCAS",
+   "url": "https://2026.iccas.org/registration-guideline/"
+  },
+  {
+   "due": "2026-09-30",
+   "event": "NAT 2026 (제7회 Nuclear Analytical Techniques)",
+   "first_seen": "2026-09-04",
+   "kind": "camera_ready",
+   "last_changed": "2026-09-04",
+   "last_seen": "2026-09-04",
+   "note": "Full paper 최종 제출",
+   "society": "NAT",
+   "url": "https://nat2026.kr/"
+  },
+  {
+   "due": "2026-10-06",
+   "end": "2026-10-08",
+   "event": "2026 가을 총회 및 국제학술대회",
+   "first_seen": "2026-09-04",
+   "kind": "event",
+   "last_changed": "2026-09-04",
+   "last_seen": "2026-09-04",
+   "note": "부산 BEXCO",
+   "society": "한국화학공학회",
+   "url": "https://www.kiche.or.kr/conference/introduce"
+  },
+  {
+   "due": "2026-10-27",
+   "end": "2026-10-30",
+   "event": "ICCAS 2026 (제26회)",
+   "first_seen": "2026-09-04",
+   "kind": "event",
+   "last_changed": "2026-09-04",
+   "last_seen": "2026-09-04",
+   "note": "삿포로 Hotel Emisia",
+   "society": "ICCAS",
+   "url": "https://2026.iccas.org/"
+  },
+  {
+   "due": "2026-10-31",
+   "event": "ICCAS 2026 IJCAS 동시투고 트랙",
+   "first_seen": "2026-09-04",
+   "kind": "camera_ready",
+   "last_changed": "2026-09-04",
+   "last_seen": "2026-09-04",
+   "note": "IJCAS 최종본. 채택 통보는 9/30 예정",
+   "society": "ICCAS",
+   "url": "https://2026.iccas.org/authors-guideline-for-initial-submission/"
+  }
+ ],
+ "sessions": [
+  {
+   "end": "2026-09-08T17:00",
+   "event": "NAT 2026 (제7회 Nuclear Analytical Techniques)",
+   "first_seen": "2026-09-04",
+   "kind": "poster",
+   "last_changed": "2026-09-04",
+   "last_seen": "2026-09-04",
+   "member": "이승훈",
+   "note": "TP_7",
+   "room": "aT센터 3F Foyer",
+   "session": "Poster Session 2 [TP_7]",
+   "society": "NAT",
+   "start": "2026-09-08T16:00",
+   "title": "Equation Oriented Pore Network Modeling and Microstructure Optimization of Vanadium Redox Flow Batteries"
+  },
+  {
+   "end": "2026-09-08T17:00",
+   "event": "NAT 2026 (제7회 Nuclear Analytical Techniques)",
+   "first_seen": "2026-09-04",
+   "kind": "poster",
+   "last_changed": "2026-09-04",
+   "last_seen": "2026-09-04",
+   "member": "현지수",
+   "note": "TP_8",
+   "room": "aT센터 3F Foyer",
+   "session": "Poster Session 2 [TP_8]",
+   "society": "NAT",
+   "start": "2026-09-08T16:00",
+   "title": "Equation-Oriented Model Based Techno-Economic Assessment on CIRCE Process"
+  },
+  {
+   "end": "2026-09-09T11:30",
+   "event": "NAT 2026 (제7회 Nuclear Analytical Techniques)",
+   "first_seen": "2026-09-04",
+   "kind": "chair",
+   "last_changed": "2026-09-04",
+   "last_seen": "2026-09-04",
+   "member": "김종우",
+   "note": "세션 전체 진행",
+   "room": "aT센터 Room D (Segyero 3)",
+   "session": "WD1",
+   "society": "NAT",
+   "start": "2026-09-09T09:30",
+   "title": "[WD1] Radiochemistry III: Isotope Separation & Analysis 좌장"
+  },
+  {
+   "end": "2026-10-06T13:36",
+   "event": "2026 가을 총회 및 국제학술대회",
+   "first_seen": "2026-09-04",
+   "kind": "oral",
+   "last_changed": "2026-09-04",
+   "last_seen": "2026-09-04",
+   "member": "김종우",
+   "note": "O공정화-2",
+   "room": "109호",
+   "session": "구두 발표(공정시스템 I)",
+   "society": "한국화학공학회",
+   "start": "2026-10-06T13:18",
+   "title": "강화학습 기반 공정 및 실험 설계 자동화"
+  },
+  {
+   "end": "2026-10-06T14:24",
+   "event": "2026 가을 총회 및 국제학술대회",
+   "first_seen": "2026-09-04",
+   "kind": "oral",
+   "last_changed": "2026-09-04",
+   "last_seen": "2026-09-04",
+   "member": "안재현",
+   "note": "O공정화-6. 우수 구두 발표상 후보",
+   "room": "109호",
+   "session": "구두 발표(공정시스템 I)",
+   "society": "한국화학공학회",
+   "start": "2026-10-06T14:14",
+   "title": "PointNet++을 활용한 환자 맞춤형 VA-ECMO 혈류 혼합 경계 영역 예측 필드 서로게이트 모델링"
+  },
+  {
+   "end": "2026-10-07T11:00",
+   "event": "2026 가을 총회 및 국제학술대회",
+   "first_seen": "2026-09-04",
+   "kind": "poster",
+   "last_changed": "2026-09-04",
+   "last_seen": "2026-09-04",
+   "member": "오희진",
+   "note": "P공정수-2. 우수 포스터 발표상 후보. 부착 08:00~09:30, 철거 11:00~12:00, 최소 40분 상주",
+   "room": "포스터장",
+   "session": "공정시스템 포스터",
+   "society": "한국화학공학회",
+   "start": "2026-10-07T09:30",
+   "title": "재생에너지 연계 Reversible Solid Oxide Cell(RSOC) 시스템의 안전 강화학습 기반 운전 스케줄링"
+  },
+  {
+   "end": "2026-10-07T11:00",
+   "event": "2026 가을 총회 및 국제학술대회",
+   "first_seen": "2026-09-04",
+   "kind": "poster",
+   "last_changed": "2026-09-04",
+   "last_seen": "2026-09-04",
+   "member": "이나경",
+   "note": "P공정수-45. 부착 08:00~09:30, 철거 11:00~12:00, 최소 40분 상주",
+   "room": "포스터장",
+   "session": "공정시스템 포스터",
+   "society": "한국화학공학회",
+   "start": "2026-10-07T09:30",
+   "title": "공정 인지형 Molecular GNN을 이용한 추출증류 엔트레이너 순위 예측"
+  }
+ ],
+ "personal": [
+  {
+   "title": "랩세미나",
+   "kind": "seminar",
+   "due": "2026-09-04T11:00",
+   "member": [],
+   "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요",
+   "repeat": "weekly"
+  },
+  {
+   "title": "개인미팅",
+   "kind": "meeting",
+   "due": "2026-09-08",
+   "member": [
     "현지수",
     "이승훈",
     "안재현",
@@ -298,1059 +530,772 @@ const DATA = /*DATA*/{
     "이영한",
     "강서현",
     "김균영"
-  ],
-  "deadlines": [
-    {
-      "due": "2026-08-31",
-      "event": "ICCAS 2026 (제26회)",
-      "first_seen": "2026-09-04",
-      "kind": "camera_ready",
-      "last_changed": "2026-09-04",
-      "last_seen": "2026-09-04",
-      "note": "ICCAS 최종본. 종료",
-      "society": "ICCAS",
-      "url": "https://2026.iccas.org/authors-guideline-for-initial-submission/"
-    },
-    {
-      "due": "2026-09-04",
-      "event": "2026 가을 총회 및 국제학술대회",
-      "first_seen": "2026-09-04",
-      "kind": "earlybird",
-      "last_changed": "2026-09-04",
-      "last_seen": "2026-09-04",
-      "note": "학술대회안내 페이지 기준 사전등록 5/14~9/4 — 오늘 마감이므로 직접 확인 필요",
-      "society": "한국화학공학회",
-      "url": "https://www.kiche.or.kr/conference/registration"
-    },
-    {
-      "due": "2026-09-06",
-      "end": "2026-09-10",
-      "event": "NAT 2026 (제7회 Nuclear Analytical Techniques)",
-      "first_seen": "2026-09-04",
-      "kind": "event",
-      "last_changed": "2026-09-04",
-      "last_seen": "2026-09-04",
-      "note": "서울 aT센터",
-      "society": "NAT",
-      "url": "https://nat2026.kr/overview.html"
-    },
-    {
-      "due": "2026-09-18",
-      "event": "ICCAS 2026 (제26회)",
-      "first_seen": "2026-09-08",
-      "kind": "earlybird",
-      "last_changed": "2026-09-08",
-      "last_seen": "2026-09-08",
-      "note": "Advanced registration 'By September 18, 2026'. 이 날 이후는 late 요금이고 환불도 안 됩니다. 발표자는 최종본 마감 전까지 저자 1명 이상 사전등록 필수",
-      "society": "ICCAS",
-      "url": "https://2026.iccas.org/registration-guideline/"
-    },
-    {
-      "due": "2026-09-30",
-      "event": "NAT 2026 (제7회 Nuclear Analytical Techniques)",
-      "first_seen": "2026-09-04",
-      "kind": "camera_ready",
-      "last_changed": "2026-09-04",
-      "last_seen": "2026-09-04",
-      "note": "Full paper 최종 제출",
-      "society": "NAT",
-      "url": "https://nat2026.kr/"
-    },
-    {
-      "due": "2026-10-06",
-      "end": "2026-10-08",
-      "event": "2026 가을 총회 및 국제학술대회",
-      "first_seen": "2026-09-04",
-      "kind": "event",
-      "last_changed": "2026-09-04",
-      "last_seen": "2026-09-04",
-      "note": "부산 BEXCO",
-      "society": "한국화학공학회",
-      "url": "https://www.kiche.or.kr/conference/introduce"
-    },
-    {
-      "due": "2026-10-27",
-      "end": "2026-10-30",
-      "event": "ICCAS 2026 (제26회)",
-      "first_seen": "2026-09-04",
-      "kind": "event",
-      "last_changed": "2026-09-04",
-      "last_seen": "2026-09-04",
-      "note": "삿포로 Hotel Emisia",
-      "society": "ICCAS",
-      "url": "https://2026.iccas.org/"
-    },
-    {
-      "due": "2026-10-31",
-      "event": "ICCAS 2026 IJCAS 동시투고 트랙",
-      "first_seen": "2026-09-04",
-      "kind": "camera_ready",
-      "last_changed": "2026-09-04",
-      "last_seen": "2026-09-04",
-      "note": "IJCAS 최종본. 채택 통보는 9/30 예정",
-      "society": "ICCAS",
-      "url": "https://2026.iccas.org/authors-guideline-for-initial-submission/"
-    }
-  ],
-  "sessions": [
-    {
-      "end": "2026-09-08T17:00",
-      "event": "NAT 2026 (제7회 Nuclear Analytical Techniques)",
-      "first_seen": "2026-09-04",
-      "kind": "poster",
-      "last_changed": "2026-09-04",
-      "last_seen": "2026-09-04",
-      "member": "이승훈",
-      "note": "TP_7",
-      "room": "aT센터 3F Foyer",
-      "session": "Poster Session 2 [TP_7]",
-      "society": "NAT",
-      "start": "2026-09-08T16:00",
-      "title": "Equation Oriented Pore Network Modeling and Microstructure Optimization of Vanadium Redox Flow Batteries"
-    },
-    {
-      "end": "2026-09-08T17:00",
-      "event": "NAT 2026 (제7회 Nuclear Analytical Techniques)",
-      "first_seen": "2026-09-04",
-      "kind": "poster",
-      "last_changed": "2026-09-04",
-      "last_seen": "2026-09-04",
-      "member": "현지수",
-      "note": "TP_8",
-      "room": "aT센터 3F Foyer",
-      "session": "Poster Session 2 [TP_8]",
-      "society": "NAT",
-      "start": "2026-09-08T16:00",
-      "title": "Equation-Oriented Model Based Techno-Economic Assessment on CIRCE Process"
-    },
-    {
-      "end": "2026-09-09T11:30",
-      "event": "NAT 2026 (제7회 Nuclear Analytical Techniques)",
-      "first_seen": "2026-09-04",
-      "kind": "chair",
-      "last_changed": "2026-09-04",
-      "last_seen": "2026-09-04",
-      "member": "김종우",
-      "note": "세션 전체 진행",
-      "room": "aT센터 Room D (Segyero 3)",
-      "session": "WD1",
-      "society": "NAT",
-      "start": "2026-09-09T09:30",
-      "title": "[WD1] Radiochemistry III: Isotope Separation & Analysis 좌장"
-    },
-    {
-      "end": "2026-10-06T13:36",
-      "event": "2026 가을 총회 및 국제학술대회",
-      "first_seen": "2026-09-04",
-      "kind": "oral",
-      "last_changed": "2026-09-04",
-      "last_seen": "2026-09-04",
-      "member": "김종우",
-      "note": "O공정화-2",
-      "room": "109호",
-      "session": "구두 발표(공정시스템 I)",
-      "society": "한국화학공학회",
-      "start": "2026-10-06T13:18",
-      "title": "강화학습 기반 공정 및 실험 설계 자동화"
-    },
-    {
-      "end": "2026-10-06T14:24",
-      "event": "2026 가을 총회 및 국제학술대회",
-      "first_seen": "2026-09-04",
-      "kind": "oral",
-      "last_changed": "2026-09-04",
-      "last_seen": "2026-09-04",
-      "member": "안재현",
-      "note": "O공정화-6. 우수 구두 발표상 후보",
-      "room": "109호",
-      "session": "구두 발표(공정시스템 I)",
-      "society": "한국화학공학회",
-      "start": "2026-10-06T14:14",
-      "title": "PointNet++을 활용한 환자 맞춤형 VA-ECMO 혈류 혼합 경계 영역 예측 필드 서로게이트 모델링"
-    },
-    {
-      "end": "2026-10-07T11:00",
-      "event": "2026 가을 총회 및 국제학술대회",
-      "first_seen": "2026-09-04",
-      "kind": "poster",
-      "last_changed": "2026-09-04",
-      "last_seen": "2026-09-04",
-      "member": "오희진",
-      "note": "P공정수-2. 우수 포스터 발표상 후보. 부착 08:00~09:30, 철거 11:00~12:00, 최소 40분 상주",
-      "room": "포스터장",
-      "session": "공정시스템 포스터",
-      "society": "한국화학공학회",
-      "start": "2026-10-07T09:30",
-      "title": "재생에너지 연계 Reversible Solid Oxide Cell(RSOC) 시스템의 안전 강화학습 기반 운전 스케줄링"
-    },
-    {
-      "end": "2026-10-07T11:00",
-      "event": "2026 가을 총회 및 국제학술대회",
-      "first_seen": "2026-09-04",
-      "kind": "poster",
-      "last_changed": "2026-09-04",
-      "last_seen": "2026-09-04",
-      "member": "이나경",
-      "note": "P공정수-45. 부착 08:00~09:30, 철거 11:00~12:00, 최소 40분 상주",
-      "room": "포스터장",
-      "session": "공정시스템 포스터",
-      "society": "한국화학공학회",
-      "start": "2026-10-07T09:30",
-      "title": "공정 인지형 Molecular GNN을 이용한 추출증류 엔트레이너 순위 예측"
-    }
-  ],
-  "personal": [
-    {
-      "title": "랩세미나",
-      "kind": "seminar",
-      "due": "2026-09-04T11:00",
-      "member": [],
-      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요",
-      "repeat": "weekly"
-    },
-    {
-      "title": "개인미팅",
-      "kind": "meeting",
-      "due": "2026-09-08",
-      "member": [
-        "현지수",
-        "이승훈",
-        "안재현",
-        "이나경",
-        "오희진",
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현",
-        "김균영"
-      ],
-      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요",
-      "repeat": "weekly",
-      "order": [
-        "이영한",
-        "오희진",
-        "이나경",
-        "안재현",
-        "현지수",
-        "강서현",
-        "이승훈",
-        "김소윤",
-        "나승민",
-        "김균영"
-      ]
-    },
-    {
-      "title": "학부스터디",
-      "kind": "meeting",
-      "due": "2026-09-08T15:00",
-      "member": [
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현"
-      ],
-      "note": "화 15:00~16:00. 학부생 대상",
-      "repeat": "weekly"
-    },
-    {
-      "title": "랩세미나",
-      "kind": "seminar",
-      "due": "2026-09-11T11:00",
-      "member": [],
-      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "개인미팅",
-      "kind": "meeting",
-      "due": "2026-09-15",
-      "member": [
-        "현지수",
-        "이승훈",
-        "안재현",
-        "이나경",
-        "오희진",
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현",
-        "김균영"
-      ],
-      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
-      "repeat": "weekly",
-      "order": [
-        "오희진",
-        "이나경",
-        "안재현",
-        "현지수",
-        "강서현",
-        "이승훈",
-        "김소윤",
-        "나승민",
-        "김균영",
-        "이영한"
-      ]
-    },
-    {
-      "title": "학부스터디",
-      "kind": "meeting",
-      "due": "2026-09-15T15:00",
-      "member": [
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현"
-      ],
-      "note": "화 15:00~16:00. 학부생 대상 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "랩세미나",
-      "kind": "seminar",
-      "due": "2026-09-18T11:00",
-      "member": [],
-      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "개인미팅",
-      "kind": "meeting",
-      "due": "2026-09-22",
-      "member": [
-        "현지수",
-        "이승훈",
-        "안재현",
-        "이나경",
-        "오희진",
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현",
-        "김균영"
-      ],
-      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
-      "repeat": "weekly",
-      "order": [
-        "이나경",
-        "안재현",
-        "현지수",
-        "강서현",
-        "이승훈",
-        "김소윤",
-        "나승민",
-        "김균영",
-        "이영한",
-        "오희진"
-      ]
-    },
-    {
-      "title": "학부스터디",
-      "kind": "meeting",
-      "due": "2026-09-22T15:00",
-      "member": [
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현"
-      ],
-      "note": "화 15:00~16:00. 학부생 대상 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "랩세미나",
-      "kind": "seminar",
-      "due": "2026-09-25T11:00",
-      "member": [],
-      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "개인미팅",
-      "kind": "meeting",
-      "due": "2026-09-29",
-      "member": [
-        "현지수",
-        "이승훈",
-        "안재현",
-        "이나경",
-        "오희진",
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현",
-        "김균영"
-      ],
-      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
-      "repeat": "weekly",
-      "order": [
-        "안재현",
-        "현지수",
-        "강서현",
-        "이승훈",
-        "김소윤",
-        "나승민",
-        "김균영",
-        "이영한",
-        "오희진",
-        "이나경"
-      ]
-    },
-    {
-      "title": "학부스터디",
-      "kind": "meeting",
-      "due": "2026-09-29T15:00",
-      "member": [
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현"
-      ],
-      "note": "화 15:00~16:00. 학부생 대상 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "랩세미나",
-      "kind": "seminar",
-      "due": "2026-10-02T11:00",
-      "member": [],
-      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "개인미팅",
-      "kind": "meeting",
-      "due": "2026-10-06",
-      "member": [
-        "현지수",
-        "이승훈",
-        "안재현",
-        "이나경",
-        "오희진",
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현",
-        "김균영"
-      ],
-      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
-      "repeat": "weekly",
-      "order": [
-        "현지수",
-        "강서현",
-        "이승훈",
-        "김소윤",
-        "나승민",
-        "김균영",
-        "이영한",
-        "오희진",
-        "이나경",
-        "안재현"
-      ]
-    },
-    {
-      "title": "학부스터디",
-      "kind": "meeting",
-      "due": "2026-10-06T15:00",
-      "member": [
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현"
-      ],
-      "note": "화 15:00~16:00. 학부생 대상 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "랩세미나",
-      "kind": "seminar",
-      "due": "2026-10-09T11:00",
-      "member": [],
-      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "개인미팅",
-      "kind": "meeting",
-      "due": "2026-10-13",
-      "member": [
-        "현지수",
-        "이승훈",
-        "안재현",
-        "이나경",
-        "오희진",
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현",
-        "김균영"
-      ],
-      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
-      "repeat": "weekly",
-      "order": [
-        "강서현",
-        "이승훈",
-        "김소윤",
-        "나승민",
-        "김균영",
-        "이영한",
-        "오희진",
-        "이나경",
-        "안재현",
-        "현지수"
-      ]
-    },
-    {
-      "title": "학부스터디",
-      "kind": "meeting",
-      "due": "2026-10-13T15:00",
-      "member": [
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현"
-      ],
-      "note": "화 15:00~16:00. 학부생 대상 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "랩세미나",
-      "kind": "seminar",
-      "due": "2026-10-16T11:00",
-      "member": [],
-      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "개인미팅",
-      "kind": "meeting",
-      "due": "2026-10-20",
-      "member": [
-        "현지수",
-        "이승훈",
-        "안재현",
-        "이나경",
-        "오희진",
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현",
-        "김균영"
-      ],
-      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
-      "repeat": "weekly",
-      "order": [
-        "이승훈",
-        "김소윤",
-        "나승민",
-        "김균영",
-        "이영한",
-        "오희진",
-        "이나경",
-        "안재현",
-        "현지수",
-        "강서현"
-      ]
-    },
-    {
-      "title": "학부스터디",
-      "kind": "meeting",
-      "due": "2026-10-20T15:00",
-      "member": [
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현"
-      ],
-      "note": "화 15:00~16:00. 학부생 대상 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "랩세미나",
-      "kind": "seminar",
-      "due": "2026-10-23T11:00",
-      "member": [],
-      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "개인미팅",
-      "kind": "meeting",
-      "due": "2026-10-27",
-      "member": [
-        "현지수",
-        "이승훈",
-        "안재현",
-        "이나경",
-        "오희진",
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현",
-        "김균영"
-      ],
-      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
-      "repeat": "weekly",
-      "order": [
-        "김소윤",
-        "나승민",
-        "김균영",
-        "이영한",
-        "오희진",
-        "이나경",
-        "안재현",
-        "현지수",
-        "강서현",
-        "이승훈"
-      ]
-    },
-    {
-      "title": "학부스터디",
-      "kind": "meeting",
-      "due": "2026-10-27T15:00",
-      "member": [
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현"
-      ],
-      "note": "화 15:00~16:00. 학부생 대상 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "랩세미나",
-      "kind": "seminar",
-      "due": "2026-10-30T11:00",
-      "member": [],
-      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "개인미팅",
-      "kind": "meeting",
-      "due": "2026-11-03",
-      "member": [
-        "현지수",
-        "이승훈",
-        "안재현",
-        "이나경",
-        "오희진",
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현",
-        "김균영"
-      ],
-      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
-      "repeat": "weekly",
-      "order": [
-        "나승민",
-        "김균영",
-        "이영한",
-        "오희진",
-        "이나경",
-        "안재현",
-        "현지수",
-        "강서현",
-        "이승훈",
-        "김소윤"
-      ]
-    },
-    {
-      "title": "학부스터디",
-      "kind": "meeting",
-      "due": "2026-11-03T15:00",
-      "member": [
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현"
-      ],
-      "note": "화 15:00~16:00. 학부생 대상 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "랩세미나",
-      "kind": "seminar",
-      "due": "2026-11-06T11:00",
-      "member": [],
-      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "개인미팅",
-      "kind": "meeting",
-      "due": "2026-11-10",
-      "member": [
-        "현지수",
-        "이승훈",
-        "안재현",
-        "이나경",
-        "오희진",
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현",
-        "김균영"
-      ],
-      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
-      "repeat": "weekly",
-      "order": [
-        "김균영",
-        "이영한",
-        "오희진",
-        "이나경",
-        "안재현",
-        "현지수",
-        "강서현",
-        "이승훈",
-        "김소윤",
-        "나승민"
-      ]
-    },
-    {
-      "title": "학부스터디",
-      "kind": "meeting",
-      "due": "2026-11-10T15:00",
-      "member": [
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현"
-      ],
-      "note": "화 15:00~16:00. 학부생 대상 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "랩세미나",
-      "kind": "seminar",
-      "due": "2026-11-13T11:00",
-      "member": [],
-      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "개인미팅",
-      "kind": "meeting",
-      "due": "2026-11-17",
-      "member": [
-        "현지수",
-        "이승훈",
-        "안재현",
-        "이나경",
-        "오희진",
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현",
-        "김균영"
-      ],
-      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
-      "repeat": "weekly",
-      "order": [
-        "이영한",
-        "오희진",
-        "이나경",
-        "안재현",
-        "현지수",
-        "강서현",
-        "이승훈",
-        "김소윤",
-        "나승민",
-        "김균영"
-      ]
-    },
-    {
-      "title": "학부스터디",
-      "kind": "meeting",
-      "due": "2026-11-17T15:00",
-      "member": [
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현"
-      ],
-      "note": "화 15:00~16:00. 학부생 대상 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "랩세미나",
-      "kind": "seminar",
-      "due": "2026-11-20T11:00",
-      "member": [],
-      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "개인미팅",
-      "kind": "meeting",
-      "due": "2026-11-24",
-      "member": [
-        "현지수",
-        "이승훈",
-        "안재현",
-        "이나경",
-        "오희진",
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현",
-        "김균영"
-      ],
-      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
-      "repeat": "weekly",
-      "order": [
-        "오희진",
-        "이나경",
-        "안재현",
-        "현지수",
-        "강서현",
-        "이승훈",
-        "김소윤",
-        "나승민",
-        "김균영",
-        "이영한"
-      ]
-    },
-    {
-      "title": "학부스터디",
-      "kind": "meeting",
-      "due": "2026-11-24T15:00",
-      "member": [
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현"
-      ],
-      "note": "화 15:00~16:00. 학부생 대상 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "랩세미나",
-      "kind": "seminar",
-      "due": "2026-11-27T11:00",
-      "member": [],
-      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "개인미팅",
-      "kind": "meeting",
-      "due": "2026-12-01",
-      "member": [
-        "현지수",
-        "이승훈",
-        "안재현",
-        "이나경",
-        "오희진",
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현",
-        "김균영"
-      ],
-      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
-      "repeat": "weekly",
-      "order": [
-        "이나경",
-        "안재현",
-        "현지수",
-        "강서현",
-        "이승훈",
-        "김소윤",
-        "나승민",
-        "김균영",
-        "이영한",
-        "오희진"
-      ]
-    },
-    {
-      "title": "학부스터디",
-      "kind": "meeting",
-      "due": "2026-12-01T15:00",
-      "member": [
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현"
-      ],
-      "note": "화 15:00~16:00. 학부생 대상 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "랩세미나",
-      "kind": "seminar",
-      "due": "2026-12-04T11:00",
-      "member": [],
-      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "개인미팅",
-      "kind": "meeting",
-      "due": "2026-12-08",
-      "member": [
-        "현지수",
-        "이승훈",
-        "안재현",
-        "이나경",
-        "오희진",
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현",
-        "김균영"
-      ],
-      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
-      "repeat": "weekly",
-      "order": [
-        "안재현",
-        "현지수",
-        "강서현",
-        "이승훈",
-        "김소윤",
-        "나승민",
-        "김균영",
-        "이영한",
-        "오희진",
-        "이나경"
-      ]
-    },
-    {
-      "title": "학부스터디",
-      "kind": "meeting",
-      "due": "2026-12-08T15:00",
-      "member": [
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현"
-      ],
-      "note": "화 15:00~16:00. 학부생 대상 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "랩세미나",
-      "kind": "seminar",
-      "due": "2026-12-11T11:00",
-      "member": [],
-      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "개인미팅",
-      "kind": "meeting",
-      "due": "2026-12-15",
-      "member": [
-        "현지수",
-        "이승훈",
-        "안재현",
-        "이나경",
-        "오희진",
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현",
-        "김균영"
-      ],
-      "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
-      "repeat": "weekly",
-      "order": [
-        "현지수",
-        "강서현",
-        "이승훈",
-        "김소윤",
-        "나승민",
-        "김균영",
-        "이영한",
-        "오희진",
-        "이나경",
-        "안재현"
-      ]
-    },
-    {
-      "title": "학부스터디",
-      "kind": "meeting",
-      "due": "2026-12-15T15:00",
-      "member": [
-        "김소윤",
-        "나승민",
-        "이영한",
-        "강서현"
-      ],
-      "note": "화 15:00~16:00. 학부생 대상 (반복)",
-      "repeat": "weekly"
-    },
-    {
-      "title": "랩세미나",
-      "kind": "seminar",
-      "due": "2026-12-18T11:00",
-      "member": [],
-      "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
-      "repeat": "weekly"
-    }
-  ],
-  "leave": {
-    "year": 2026,
-    "people": [
-      {
-        "name": "이승훈",
-        "total": 19.0,
-        "used": 3.0,
-        "left": 16.0,
-        "used_before": {
-          "2026-01": 2.0,
-          "2026-02": 1.0
-        },
-        "dated": []
-      },
-      {
-        "name": "안재현",
-        "total": 27.0,
-        "used": 2.0,
-        "left": 25.0,
-        "used_before": {
-          "2026-02": 1.0,
-          "2026-07": 1.0
-        },
-        "dated": []
-      },
-      {
-        "name": "이나경",
-        "total": 16.0,
-        "used": 5.0,
-        "left": 11.0,
-        "used_before": {
-          "2026-02": 5.0
-        },
-        "dated": []
-      },
-      {
-        "name": "오희진",
-        "total": 25.0,
-        "used": 4.0,
-        "left": 21.0,
-        "used_before": {
-          "2026-01": 1.0,
-          "2026-06": 1.0,
-          "2026-08": 2.0
-        },
-        "dated": []
-      },
-      {
-        "name": "현지수",
-        "total": 30.0,
-        "used": 6.0,
-        "left": 24.0,
-        "used_before": {
-          "2026-05": 2.0,
-          "2026-06": 1.0,
-          "2026-08": 3.0
-        },
-        "dated": []
-      }
-    ],
-    "leaves": []
+   ],
+   "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요",
+   "repeat": "weekly",
+   "order": [
+    "이영한",
+    "오희진",
+    "이나경",
+    "안재현",
+    "현지수",
+    "강서현",
+    "이승훈",
+    "김소윤",
+    "나승민",
+    "김균영"
+   ]
+  },
+  {
+   "title": "학부스터디",
+   "kind": "meeting",
+   "due": "2026-09-08T15:00",
+   "member": [
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현"
+   ],
+   "note": "화 15:00~16:00. 학부생 대상",
+   "repeat": "weekly"
+  },
+  {
+   "title": "랩세미나",
+   "kind": "seminar",
+   "due": "2026-09-11T11:00",
+   "member": [],
+   "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "개인미팅",
+   "kind": "meeting",
+   "due": "2026-09-15",
+   "member": [
+    "현지수",
+    "이승훈",
+    "안재현",
+    "이나경",
+    "오희진",
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현",
+    "김균영"
+   ],
+   "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+   "repeat": "weekly",
+   "order": [
+    "오희진",
+    "이나경",
+    "안재현",
+    "현지수",
+    "강서현",
+    "이승훈",
+    "김소윤",
+    "나승민",
+    "김균영",
+    "이영한"
+   ]
+  },
+  {
+   "title": "학부스터디",
+   "kind": "meeting",
+   "due": "2026-09-15T15:00",
+   "member": [
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현"
+   ],
+   "note": "화 15:00~16:00. 학부생 대상 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "랩세미나",
+   "kind": "seminar",
+   "due": "2026-09-18T11:00",
+   "member": [],
+   "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "개인미팅",
+   "kind": "meeting",
+   "due": "2026-09-22",
+   "member": [
+    "현지수",
+    "이승훈",
+    "안재현",
+    "이나경",
+    "오희진",
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현",
+    "김균영"
+   ],
+   "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+   "repeat": "weekly",
+   "order": [
+    "이나경",
+    "안재현",
+    "현지수",
+    "강서현",
+    "이승훈",
+    "김소윤",
+    "나승민",
+    "김균영",
+    "이영한",
+    "오희진"
+   ]
+  },
+  {
+   "title": "학부스터디",
+   "kind": "meeting",
+   "due": "2026-09-22T15:00",
+   "member": [
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현"
+   ],
+   "note": "화 15:00~16:00. 학부생 대상 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "랩세미나",
+   "kind": "seminar",
+   "due": "2026-09-25T11:00",
+   "member": [],
+   "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "개인미팅",
+   "kind": "meeting",
+   "due": "2026-09-29",
+   "member": [
+    "현지수",
+    "이승훈",
+    "안재현",
+    "이나경",
+    "오희진",
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현",
+    "김균영"
+   ],
+   "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+   "repeat": "weekly",
+   "order": [
+    "안재현",
+    "현지수",
+    "강서현",
+    "이승훈",
+    "김소윤",
+    "나승민",
+    "김균영",
+    "이영한",
+    "오희진",
+    "이나경"
+   ]
+  },
+  {
+   "title": "학부스터디",
+   "kind": "meeting",
+   "due": "2026-09-29T15:00",
+   "member": [
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현"
+   ],
+   "note": "화 15:00~16:00. 학부생 대상 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "랩세미나",
+   "kind": "seminar",
+   "due": "2026-10-02T11:00",
+   "member": [],
+   "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "개인미팅",
+   "kind": "meeting",
+   "due": "2026-10-06",
+   "member": [
+    "현지수",
+    "이승훈",
+    "안재현",
+    "이나경",
+    "오희진",
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현",
+    "김균영"
+   ],
+   "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+   "repeat": "weekly",
+   "order": [
+    "현지수",
+    "강서현",
+    "이승훈",
+    "김소윤",
+    "나승민",
+    "김균영",
+    "이영한",
+    "오희진",
+    "이나경",
+    "안재현"
+   ]
+  },
+  {
+   "title": "학부스터디",
+   "kind": "meeting",
+   "due": "2026-10-06T15:00",
+   "member": [
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현"
+   ],
+   "note": "화 15:00~16:00. 학부생 대상 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "랩세미나",
+   "kind": "seminar",
+   "due": "2026-10-09T11:00",
+   "member": [],
+   "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "개인미팅",
+   "kind": "meeting",
+   "due": "2026-10-13",
+   "member": [
+    "현지수",
+    "이승훈",
+    "안재현",
+    "이나경",
+    "오희진",
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현",
+    "김균영"
+   ],
+   "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+   "repeat": "weekly",
+   "order": [
+    "강서현",
+    "이승훈",
+    "김소윤",
+    "나승민",
+    "김균영",
+    "이영한",
+    "오희진",
+    "이나경",
+    "안재현",
+    "현지수"
+   ]
+  },
+  {
+   "title": "학부스터디",
+   "kind": "meeting",
+   "due": "2026-10-13T15:00",
+   "member": [
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현"
+   ],
+   "note": "화 15:00~16:00. 학부생 대상 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "랩세미나",
+   "kind": "seminar",
+   "due": "2026-10-16T11:00",
+   "member": [],
+   "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "개인미팅",
+   "kind": "meeting",
+   "due": "2026-10-20",
+   "member": [
+    "현지수",
+    "이승훈",
+    "안재현",
+    "이나경",
+    "오희진",
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현",
+    "김균영"
+   ],
+   "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+   "repeat": "weekly",
+   "order": [
+    "이승훈",
+    "김소윤",
+    "나승민",
+    "김균영",
+    "이영한",
+    "오희진",
+    "이나경",
+    "안재현",
+    "현지수",
+    "강서현"
+   ]
+  },
+  {
+   "title": "학부스터디",
+   "kind": "meeting",
+   "due": "2026-10-20T15:00",
+   "member": [
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현"
+   ],
+   "note": "화 15:00~16:00. 학부생 대상 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "랩세미나",
+   "kind": "seminar",
+   "due": "2026-10-23T11:00",
+   "member": [],
+   "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "개인미팅",
+   "kind": "meeting",
+   "due": "2026-10-27",
+   "member": [
+    "현지수",
+    "이승훈",
+    "안재현",
+    "이나경",
+    "오희진",
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현",
+    "김균영"
+   ],
+   "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+   "repeat": "weekly",
+   "order": [
+    "김소윤",
+    "나승민",
+    "김균영",
+    "이영한",
+    "오희진",
+    "이나경",
+    "안재현",
+    "현지수",
+    "강서현",
+    "이승훈"
+   ]
+  },
+  {
+   "title": "학부스터디",
+   "kind": "meeting",
+   "due": "2026-10-27T15:00",
+   "member": [
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현"
+   ],
+   "note": "화 15:00~16:00. 학부생 대상 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "랩세미나",
+   "kind": "seminar",
+   "due": "2026-10-30T11:00",
+   "member": [],
+   "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "개인미팅",
+   "kind": "meeting",
+   "due": "2026-11-03",
+   "member": [
+    "현지수",
+    "이승훈",
+    "안재현",
+    "이나경",
+    "오희진",
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현",
+    "김균영"
+   ],
+   "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+   "repeat": "weekly",
+   "order": [
+    "나승민",
+    "김균영",
+    "이영한",
+    "오희진",
+    "이나경",
+    "안재현",
+    "현지수",
+    "강서현",
+    "이승훈",
+    "김소윤"
+   ]
+  },
+  {
+   "title": "학부스터디",
+   "kind": "meeting",
+   "due": "2026-11-03T15:00",
+   "member": [
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현"
+   ],
+   "note": "화 15:00~16:00. 학부생 대상 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "랩세미나",
+   "kind": "seminar",
+   "due": "2026-11-06T11:00",
+   "member": [],
+   "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "개인미팅",
+   "kind": "meeting",
+   "due": "2026-11-10",
+   "member": [
+    "현지수",
+    "이승훈",
+    "안재현",
+    "이나경",
+    "오희진",
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현",
+    "김균영"
+   ],
+   "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+   "repeat": "weekly",
+   "order": [
+    "김균영",
+    "이영한",
+    "오희진",
+    "이나경",
+    "안재현",
+    "현지수",
+    "강서현",
+    "이승훈",
+    "김소윤",
+    "나승민"
+   ]
+  },
+  {
+   "title": "학부스터디",
+   "kind": "meeting",
+   "due": "2026-11-10T15:00",
+   "member": [
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현"
+   ],
+   "note": "화 15:00~16:00. 학부생 대상 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "랩세미나",
+   "kind": "seminar",
+   "due": "2026-11-13T11:00",
+   "member": [],
+   "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "개인미팅",
+   "kind": "meeting",
+   "due": "2026-11-17",
+   "member": [
+    "현지수",
+    "이승훈",
+    "안재현",
+    "이나경",
+    "오희진",
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현",
+    "김균영"
+   ],
+   "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+   "repeat": "weekly",
+   "order": [
+    "이영한",
+    "오희진",
+    "이나경",
+    "안재현",
+    "현지수",
+    "강서현",
+    "이승훈",
+    "김소윤",
+    "나승민",
+    "김균영"
+   ]
+  },
+  {
+   "title": "학부스터디",
+   "kind": "meeting",
+   "due": "2026-11-17T15:00",
+   "member": [
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현"
+   ],
+   "note": "화 15:00~16:00. 학부생 대상 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "랩세미나",
+   "kind": "seminar",
+   "due": "2026-11-20T11:00",
+   "member": [],
+   "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "개인미팅",
+   "kind": "meeting",
+   "due": "2026-11-24",
+   "member": [
+    "현지수",
+    "이승훈",
+    "안재현",
+    "이나경",
+    "오희진",
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현",
+    "김균영"
+   ],
+   "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+   "repeat": "weekly",
+   "order": [
+    "오희진",
+    "이나경",
+    "안재현",
+    "현지수",
+    "강서현",
+    "이승훈",
+    "김소윤",
+    "나승민",
+    "김균영",
+    "이영한"
+   ]
+  },
+  {
+   "title": "학부스터디",
+   "kind": "meeting",
+   "due": "2026-11-24T15:00",
+   "member": [
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현"
+   ],
+   "note": "화 15:00~16:00. 학부생 대상 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "랩세미나",
+   "kind": "seminar",
+   "due": "2026-11-27T11:00",
+   "member": [],
+   "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "개인미팅",
+   "kind": "meeting",
+   "due": "2026-12-01",
+   "member": [
+    "현지수",
+    "이승훈",
+    "안재현",
+    "이나경",
+    "오희진",
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현",
+    "김균영"
+   ],
+   "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+   "repeat": "weekly",
+   "order": [
+    "이나경",
+    "안재현",
+    "현지수",
+    "강서현",
+    "이승훈",
+    "김소윤",
+    "나승민",
+    "김균영",
+    "이영한",
+    "오희진"
+   ]
+  },
+  {
+   "title": "학부스터디",
+   "kind": "meeting",
+   "due": "2026-12-01T15:00",
+   "member": [
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현"
+   ],
+   "note": "화 15:00~16:00. 학부생 대상 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "랩세미나",
+   "kind": "seminar",
+   "due": "2026-12-04T11:00",
+   "member": [],
+   "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "개인미팅",
+   "kind": "meeting",
+   "due": "2026-12-08",
+   "member": [
+    "현지수",
+    "이승훈",
+    "안재현",
+    "이나경",
+    "오희진",
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현",
+    "김균영"
+   ],
+   "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+   "repeat": "weekly",
+   "order": [
+    "안재현",
+    "현지수",
+    "강서현",
+    "이승훈",
+    "김소윤",
+    "나승민",
+    "김균영",
+    "이영한",
+    "오희진",
+    "이나경"
+   ]
+  },
+  {
+   "title": "학부스터디",
+   "kind": "meeting",
+   "due": "2026-12-08T15:00",
+   "member": [
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현"
+   ],
+   "note": "화 15:00~16:00. 학부생 대상 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "랩세미나",
+   "kind": "seminar",
+   "due": "2026-12-11T11:00",
+   "member": [],
+   "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "개인미팅",
+   "kind": "meeting",
+   "due": "2026-12-15",
+   "member": [
+    "현지수",
+    "이승훈",
+    "안재현",
+    "이나경",
+    "오희진",
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현",
+    "김균영"
+   ],
+   "note": "화요일. 시각 미정 — 정해지면 due 를 2026-09-08T14:00 형태로 고치세요 (반복)",
+   "repeat": "weekly",
+   "order": [
+    "현지수",
+    "강서현",
+    "이승훈",
+    "김소윤",
+    "나승민",
+    "김균영",
+    "이영한",
+    "오희진",
+    "이나경",
+    "안재현"
+   ]
+  },
+  {
+   "title": "학부스터디",
+   "kind": "meeting",
+   "due": "2026-12-15T15:00",
+   "member": [
+    "김소윤",
+    "나승민",
+    "이영한",
+    "강서현"
+   ],
+   "note": "화 15:00~16:00. 학부생 대상 (반복)",
+   "repeat": "weekly"
+  },
+  {
+   "title": "랩세미나",
+   "kind": "seminar",
+   "due": "2026-12-18T11:00",
+   "member": [],
+   "note": "금요일 대학원 수업 후, 비대면. 11시는 대략값이니 확정되면 고치세요 (반복)",
+   "repeat": "weekly"
   }
+ ]
 }/*/DATA*/;
 
 const DUE_LABEL = {abstract:"초록 마감", full_paper:"논문 마감", earlybird:"사전등록 마감",
@@ -2342,6 +2287,67 @@ document.getElementById("next").onclick = () => { cursor.setMonth(cursor.getMont
 buildAll();
 render();
 initDb().then(initChat);
+</script>
+
+
+<style>
+.addon{max-width:1180px;margin:26px auto 0;padding:0 18px;font:14px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
+.addon section{border:1px solid #e2e5ea;border-radius:14px;padding:18px 20px;margin-bottom:14px;background:#fff}
+.addon h2{margin:0 0 4px;font-size:15px;letter-spacing:-.01em}
+.addon p{margin:0 0 12px;color:#5b6270;font-size:13px}
+.addon .hint{margin:12px 0 0;font-size:12px;color:#7b828e}
+.subgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.subrow{display:flex;align-items:center;gap:6px;border:1px solid #e6e9ee;border-radius:10px;padding:7px 9px}
+.subrow b{flex:1;font-weight:600;font-size:13px}
+.subrow a{text-decoration:none;font-size:12px;padding:4px 9px;border-radius:7px;white-space:nowrap}
+.subrow .go{background:#1d4ed8;color:#fff}
+.subrow .gg{background:#eef1f6;color:#3c4655}
+.steps{margin:0;padding-left:18px;color:#4b525e;font-size:13px}
+.steps li{margin:3px 0}
+@media (prefers-color-scheme:dark){
+ .addon section{background:#171a1f;border-color:#2a2f38}
+ .addon p,.steps{color:#9aa2ae} .addon .hint{color:#7b828e}
+ .subrow{border-color:#2a2f38} .subrow .gg{background:#242932;color:#c9d0da}
+}
+</style>
+<div class="addon">
+  <section>
+    <h2>내 일정 폰에 넣기</h2>
+    <p>이름을 누르면 폰 캘린더에 <b>구독</b>으로 들어갑니다. 한 번만 해두면 일정이 바뀔 때마다 자동으로 따라옵니다 — 다시 받을 필요가 없습니다.</p>
+    <div class="subgrid" id="subGrid"></div>
+    <p class="hint">아이폰은 파란 버튼(구독)을 누르면 "구독하시겠습니까?" 가 뜹니다.
+      안드로이드는 구글 캘린더 버튼을 쓰세요. 마감 7일·1일 전, 발표 1일 전·1시간 전에 알림이 옵니다.</p>
+  </section>
+  <section>
+    <h2>홈 화면에 추가</h2>
+    <p>앱처럼 한 번에 열립니다. 설치가 아니라 바로가기라 용량을 쓰지 않습니다.</p>
+    <ol class="steps">
+      <li><b>아이폰(사파리)</b> — 아래 공유 버튼 <span aria-hidden="true">⬆︎</span> → "홈 화면에 추가"</li>
+      <li><b>안드로이드(크롬)</b> — 오른쪽 위 ⋮ → "홈 화면에 추가"</li>
+      <li><b>PC</b> — 주소창 오른쪽 설치 아이콘, 또는 그냥 즐겨찾기</li>
+    </ol>
+  </section>
+</div>
+<script>
+(function(){
+  /* 주소를 코드에 박지 않는다. 저장소 이름이 바뀌거나 다른 곳에 올려도 그대로 동작해야 한다. */
+  var base = location.href.split(/[?#]/)[0].replace(/[^\/]*$/, "");
+  var web  = base.replace(/^https?:/, "webcal:");
+  var rows = [{name:"전체 일정", file:"all.ics", all:true}];
+  ((typeof DATA !== "undefined" && DATA.members) || []).forEach(function(n){
+    rows.push({name:n, file:n + ".ics"});
+  });
+  var g = document.getElementById("subGrid");
+  if (!g) return;
+  g.innerHTML = rows.map(function(r){
+    var enc = encodeURIComponent(r.file);
+    var wurl = web + "calendars/" + enc;
+    var gurl = "https://calendar.google.com/calendar/r?cid=" + encodeURIComponent(wurl);
+    return '<div class="subrow"><b>' + r.name + '</b>'
+         + '<a class="go" href="' + wurl + '">구독</a>'
+         + '<a class="gg" href="' + gurl + '" target="_blank" rel="noopener">구글</a></div>';
+  }).join("");
+})();
 </script>
 
 </body>

@@ -1190,12 +1190,153 @@ def cmd_leave():
 SITE = SHARED.parent / "docs"          # GitHub Pages 가 그대로 서비스하는 폴더
 
 
-def cmd_site():
+def _public_payload():
+    """공개 사이트에 실을 데이터. 연차는 뺀다.
+
+    GitHub Pages 는 저장소를 private 으로 두어도 사이트 자체는 공개다.
+    누구 연차가 며칠 남았는지는 링크를 아는 아무나 볼 정보가 아니다.
+    화면에서 감추는 것으로는 부족하다 — HTML 소스에 남으므로 아예 뺀다.
+    (발표 제목은 이미 학회 프로그램북에 공개된 것이라 그대로 둔다.)
+    """
+    data = json.loads((ROOT / "data.json").read_text(encoding="utf-8"))
+    dropped = len((data.get("leave") or {}).get("people") or [])
+    data.pop("leave", None)
+    return json.dumps(data, ensure_ascii=False, indent=1), dropped
+
+
+def _write_icon(path, size):
+    """홈 화면 아이콘. 폰에서 '홈 화면에 추가' 하면 이게 앱 아이콘이 된다.
+
+    한글 폰트에 기대지 않으려고 글자 대신 달력 모양을 직접 그린다.
+    폰트는 OS마다 있고 없고가 달라서 빌드가 조용히 깨진다.
+    """
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError:
+        return False
+    s = size
+    img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    r = int(s * 0.22)
+    d.rounded_rectangle([0, 0, s - 1, s - 1], radius=r, fill=(29, 78, 216, 255))
+    # 달력 몸통
+    x0, y0, x1, y1 = int(s * .22), int(s * .28), int(s * .78), int(s * .76)
+    d.rounded_rectangle([x0, y0, x1, y1], radius=int(s * .06), fill=(255, 255, 255, 255))
+    # 상단 머리띠
+    d.rounded_rectangle([x0, y0, x1, y0 + int(s * .12)], radius=int(s * .06),
+                        fill=(147, 197, 253, 255))
+    d.rectangle([x0, y0 + int(s * .07), x1, y0 + int(s * .12)], fill=(147, 197, 253, 255))
+    # 고리 두 개
+    for cx in (int(s * .36), int(s * .64)):
+        d.rounded_rectangle([cx - int(s * .025), int(s * .20),
+                             cx + int(s * .025), int(s * .33)],
+                            radius=int(s * .025), fill=(255, 255, 255, 255))
+    # 오늘 표시 점
+    cx, cy, rr = int(s * .5), int(s * .585), int(s * .075)
+    d.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], fill=(29, 78, 216, 255))
+    img.save(str(path), "PNG")
+    return True
+
+
+# 공개 사이트에만 붙는 부분 — 폰에서 한 번에 들어오고, 한 번에 구독하게 한다.
+SITE_EXTRA = u"""
+<style>
+.addon{max-width:1180px;margin:26px auto 0;padding:0 18px;font:14px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
+.addon section{border:1px solid #e2e5ea;border-radius:14px;padding:18px 20px;margin-bottom:14px;background:#fff}
+.addon h2{margin:0 0 4px;font-size:15px;letter-spacing:-.01em}
+.addon p{margin:0 0 12px;color:#5b6270;font-size:13px}
+.addon .hint{margin:12px 0 0;font-size:12px;color:#7b828e}
+.subgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.subrow{display:flex;align-items:center;gap:6px;border:1px solid #e6e9ee;border-radius:10px;padding:7px 9px}
+.subrow b{flex:1;font-weight:600;font-size:13px}
+.subrow a{text-decoration:none;font-size:12px;padding:4px 9px;border-radius:7px;white-space:nowrap}
+.subrow .go{background:#1d4ed8;color:#fff}
+.subrow .gg{background:#eef1f6;color:#3c4655}
+.steps{margin:0;padding-left:18px;color:#4b525e;font-size:13px}
+.steps li{margin:3px 0}
+@media (prefers-color-scheme:dark){
+ .addon section{background:#171a1f;border-color:#2a2f38}
+ .addon p,.steps{color:#9aa2ae} .addon .hint{color:#7b828e}
+ .subrow{border-color:#2a2f38} .subrow .gg{background:#242932;color:#c9d0da}
+}
+</style>
+<div class="addon">
+  <section>
+    <h2>내 일정 폰에 넣기</h2>
+    <p>이름을 누르면 폰 캘린더에 <b>구독</b>으로 들어갑니다. 한 번만 해두면 일정이 바뀔 때마다 자동으로 따라옵니다 — 다시 받을 필요가 없습니다.</p>
+    <div class="subgrid" id="subGrid"></div>
+    <p class="hint">아이폰은 파란 버튼(구독)을 누르면 "구독하시겠습니까?" 가 뜹니다.
+      안드로이드는 구글 캘린더 버튼을 쓰세요. 마감 7일·1일 전, 발표 1일 전·1시간 전에 알림이 옵니다.</p>
+  </section>
+  <section>
+    <h2>홈 화면에 추가</h2>
+    <p>앱처럼 한 번에 열립니다. 설치가 아니라 바로가기라 용량을 쓰지 않습니다.</p>
+    <ol class="steps">
+      <li><b>아이폰(사파리)</b> — 아래 공유 버튼 <span aria-hidden="true">⬆︎</span> → "홈 화면에 추가"</li>
+      <li><b>안드로이드(크롬)</b> — 오른쪽 위 ⋮ → "홈 화면에 추가"</li>
+      <li><b>PC</b> — 주소창 오른쪽 설치 아이콘, 또는 그냥 즐겨찾기</li>
+    </ol>
+  </section>
+</div>
+<script>
+(function(){
+  /* 주소를 코드에 박지 않는다. 저장소 이름이 바뀌거나 다른 곳에 올려도 그대로 동작해야 한다. */
+  var base = location.href.split(/[?#]/)[0].replace(/[^\\/]*$/, "");
+  var web  = base.replace(/^https?:/, "webcal:");
+  var rows = [{name:"전체 일정", file:"all.ics", all:true}];
+  ((typeof DATA !== "undefined" && DATA.members) || []).forEach(function(n){
+    rows.push({name:n, file:n + ".ics"});
+  });
+  var g = document.getElementById("subGrid");
+  if (!g) return;
+  g.innerHTML = rows.map(function(r){
+    var enc = encodeURIComponent(r.file);
+    var wurl = web + "calendars/" + enc;
+    var gurl = "https://calendar.google.com/calendar/r?cid=" + encodeURIComponent(wurl);
+    return '<div class="subrow"><b>' + r.name + '</b>'
+         + '<a class="go" href="' + wurl + '">구독</a>'
+         + '<a class="gg" href="' + gurl + '" target="_blank" rel="noopener">구글</a></div>';
+  }).join("");
+})();
+</script>
+"""
+
+
+def cmd_qr(url=None):
+    """주소를 QR 로 만든다 (docs/qr.svg, qr.png).
+
+    11명한테 주소를 타이핑하게 하는 것보다 단톡방에 그림 한 장 던지는 게 빠르다.
+    연구실 문에 붙여도 된다.
+    """
+    saved = load_state().get("site_url")
+    url = url or saved
+    if not url:
+        print("주소가 없습니다: python watch.py qr https://아이디.github.io/저장소/")
+        return
+    if url != saved:
+        st = load_state()
+        st["site_url"] = url
+        save_state(st)
+    try:
+        import segno
+    except ImportError:
+        print("  ⚠ QR 을 만들려면: pip install segno")
+        return
+    SITE.mkdir(exist_ok=True)
+    q = segno.make(url, error="m")
+    q.save(str(SITE / "qr.svg"), scale=8, border=3, dark="#111827")
+    q.save(str(SITE / "qr.png"), scale=10, border=3, dark="#111827")
+    print("  QR 생성: docs/qr.svg, docs/qr.png  →  %s" % url)
+
+
+def cmd_site(base_url=None):
     """공개용 정적 사이트를 만든다 (docs/).
 
     대시보드와 같은 파일을 쓴다. 그 페이지는 Claude 런타임이 없으면 채팅·삭제를
     스스로 숨기므로, 정적으로 올려도 보기 전용으로 알아서 동작한다.
     HTML 한 벌만 관리하면 되도록 일부러 이렇게 했다.
+
+    다만 데이터는 같지 않다 — 공개본에서는 연차를 뺀다. _public_payload 참고.
     """
     cmd_sync()
     html = (ROOT / "dashboard.html").read_text(encoding="utf-8")
@@ -1206,17 +1347,48 @@ def cmd_site():
         title = m.group(1)
         html = html.replace(m.group(0), "", 1)
 
+    payload, dropped = _public_payload()
+    i, j = html.find(DATA_OPEN), html.find(DATA_CLOSE)
+    if i < 0 or j < 0 or j < i:
+        raise SystemExit("dashboard.html 에서 /*DATA*/ 표시를 찾지 못했습니다.")
+    html = html[:i + len(DATA_OPEN)] + payload + html[j:]
+
     SITE.mkdir(exist_ok=True)
     (SITE / "index.html").write_text(
         "<!doctype html>\n<html lang=\"ko\">\n<head>\n"
         "<meta charset=\"utf-8\">\n"
-        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, "
+        "viewport-fit=cover\">\n"
         "<meta name=\"robots\" content=\"noindex\">\n"
+        "<meta name=\"theme-color\" content=\"#1d4ed8\">\n"
+        "<meta name=\"apple-mobile-web-app-capable\" content=\"yes\">\n"
+        "<meta name=\"apple-mobile-web-app-title\" content=\"연구실 일정\">\n"
+        "<meta name=\"apple-mobile-web-app-status-bar-style\" content=\"default\">\n"
+        "<link rel=\"manifest\" href=\"manifest.webmanifest\">\n"
+        "<link rel=\"apple-touch-icon\" href=\"icon-180.png\">\n"
+        "<link rel=\"icon\" href=\"icon-192.png\">\n"
         "<title>%s</title>\n"
         "<style>:root{color-scheme:light dark}body{margin:0;font:14px system-ui}"
         "img{max-width:100%%}[hidden]{display:none!important}</style>\n"
-        "</head>\n<body>\n%s\n</body>\n</html>\n" % (title, html),
+        "</head>\n<body>\n%s\n%s\n</body>\n</html>\n" % (title, html, SITE_EXTRA),
         encoding="utf-8")
+
+    (SITE / "manifest.webmanifest").write_text(json.dumps({
+        "name": "인천대 연구실 일정",
+        "short_name": "연구실 일정",
+        "start_url": ".",
+        "scope": ".",
+        "display": "standalone",
+        "background_color": "#ffffff",
+        "theme_color": "#1d4ed8",
+        "icons": [
+            {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+            {"src": "icon-512.png", "sizes": "512x512", "type": "image/png",
+             "purpose": "any maskable"},
+        ],
+    }, ensure_ascii=False, indent=1), encoding="utf-8")
+
+    icons = all(_write_icon(SITE / ("icon-%d.png" % s), s) for s in (180, 192, 512))
 
     # 캘린더도 함께 올린다 — 구글 캘린더에서 URL 구독이 가능해진다
     cal = SITE / "calendars"
@@ -1232,6 +1404,14 @@ def cmd_site():
 
     print("정적 사이트 생성: %s" % SITE)
     print("  index.html (보기 전용) + 캘린더 %d개" % n)
+    if dropped:
+        print("  연차 %d명분은 공개본에서 뺐습니다 (사이트는 링크만 알면 누구나 봅니다)" % dropped)
+    if not icons:
+        print("  ⚠ Pillow 가 없어 홈 화면 아이콘을 만들지 못했습니다 — pip install pillow")
+    if base_url or load_state().get("site_url"):
+        cmd_qr(base_url)
+    else:
+        print("  주소가 정해지면 한 번만: python watch.py site https://아이디.github.io/저장소/")
     print("  GitHub 저장소 Settings > Pages 에서 main 브랜치의 /docs 를 지정하세요.")
 
 
@@ -1312,9 +1492,12 @@ def cmd_reset():
 
 CMDS = {"list": cmd_list, "report": cmd_report, "ics": cmd_ics,
         "web": cmd_web, "sync": cmd_sync, "publish": cmd_publish, "leave": cmd_leave,
-        "site": cmd_site,
-        "show": cmd_show, "reset": cmd_reset, "rotation": cmd_rotation,
+        "show": cmd_show, "reset": cmd_reset,
         "prune-members": cmd_prune_members}
+# 인자를 줘도 되고 안 줘도 되는 것들. CMDS 에 넣어두면 인자가 조용히 무시된다 —
+# `rotation 2026-09-08` 이 날짜를 씹고 엉뚱한 회차를 보여준 적이 있다.
+OPT_CMDS = {"month": cmd_month, "site": cmd_site, "qr": cmd_qr,
+            "rotation": cmd_rotation}
 ARG_CMDS = {"scan-pdf": cmd_scan_pdf,
             "upsert-deadlines": cmd_upsert_deadlines,
             "upsert-sessions": cmd_upsert_sessions}
@@ -1322,8 +1505,8 @@ ARG_CMDS = {"scan-pdf": cmd_scan_pdf,
 if __name__ == "__main__":
     a = sys.argv[1:]
     cmd = a[0] if a else "report"
-    if cmd == "month":
-        cmd_month(a[1] if len(a) > 1 else None)
+    if cmd in OPT_CMDS:
+        OPT_CMDS[cmd](a[1] if len(a) > 1 else None)
     elif cmd in CMDS:
         CMDS[cmd]()
     elif cmd in ARG_CMDS:
