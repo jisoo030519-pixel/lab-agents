@@ -1,0 +1,24 @@
+name = "lab-schedule-ai"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+[vars]
+# 일정 자료를 어디서 가져올지. 우리 사이트의 data.json 이다.
+DATA_URL = "https://jisoo030519-pixel.github.io/lab-agents/data.json"
+
+# 우리 사이트에서 온 요청만 받는다. 쉼표로 여러 개.
+# 로컬에서 시험하려면 http://localhost:8765 를 임시로 넣으면 된다.
+ALLOWED_ORIGINS = "https://jisoo030519-pixel.github.io"
+
+# 요금이 새지 않게 하는 상한. 랩 인원 11명이면 넉넉하다.
+PER_IP_HOUR = "30"
+DAILY_TOTAL = "500"
+
+# 모델. 더 싸게 쓰려면 claude-haiku-4-5-20251001
+MODEL = "claude-sonnet-5"
+
+# 사용량 세는 곳. 아래 id 는 `wrangler kv namespace create RATE` 가 알려준 값으로 바꾼다.
+# 이게 없으면 Worker 는 동작하지만 횟수 제한이 걸리지 않는다 (권장하지 않음).
+[[kv_namespaces]]
+binding = "RATE"
+id = "여기에_KV_ID_붙여넣기"

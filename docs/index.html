@@ -291,7 +291,7 @@ footer code{font-family:"IBM Plex Mono",monospace; background:var(--surface-2); 
 <script>
 const DATA = /*DATA*/{
  "lab": "인천대 연구실",
- "generated": "2026-09-09T11:59:54",
+ "generated": "2026-09-09T13:39:57",
  "today": "2026-09-09",
  "members": [
   "김종우",
@@ -2304,14 +2304,53 @@ function localAnswer(q){
        + "새로 등록하거나 일정을 바꾸려면 담당자에게 말해주세요.";
 }
 
+/* 중계 서버에 물어본다 (공개 사이트).
+   키는 서버에만 있다. 서버가 없거나 죽었으면 자료 검색으로 떨어진다 —
+   말은 못 알아들어도 아무 답도 못 주는 것보다는 낫다. */
+async function askViaWorker(text){
+  const ep = (typeof window !== "undefined" && window.__AI_ENDPOINT) || "";
+  if (!ep) return null;
+  const ctl2 = new AbortController();
+  const t = setTimeout(() => ctl2.abort(), 30000);
+  try {
+    const r = await fetch(ep, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ q: text, history: turns.slice(-4) }),
+      signal: ctl2.signal,
+    });
+    const j = await r.json().catch(() => null);
+    if (!r.ok || !j || j.error) return { err: (j && j.error) || ("실패 " + r.status) };
+    return { text: j.text };
+  } catch (e) {
+    return { err: e && e.name === "AbortError" ? "시간이 너무 걸립니다" : "서버에 닿지 못했습니다" };
+  } finally { clearTimeout(t); }
+}
+
 async function ask(text){
   if (busy || !text.trim()) return;
-  if (!sampleFn){                       // 런타임이 없으면 자료에서 직접 답한다
+  if (!sampleFn){                       // Claude 런타임이 없는 화면 (공개 사이트·배포본)
     const hint = logEl().querySelector(".hint");
     if (hint) hint.remove();
     bubble("me", text);
     document.getElementById("q").value = "";
-    bubble("ai", localAnswer(text));
+    const ep = (typeof window !== "undefined" && window.__AI_ENDPOINT) || "";
+    if (!ep){ bubble("ai", localAnswer(text)); logEl().scrollTop = logEl().scrollHeight; return; }
+    busy = true;
+    const out = bubble("ai", "생각하는 중…");
+    turns.push({ role:"user", content:text });
+    const got = await askViaWorker(text);
+    busy = false;
+    if (got && got.text){
+      out.textContent = got.text;
+      turns.push({ role:"assistant", content:got.text });
+    } else {
+      // 서버가 답을 못 줬으면 최소한 자료에서 찾아 준다
+      out.textContent = localAnswer(text);
+      turns.pop();
+      bubble("err", "⚠ AI 서버 문제로 검색 결과만 보여드렸습니다 ("
+        + ((got && got.err) || "알 수 없음") + ")");
+    }
     logEl().scrollTop = logEl().scrollHeight;
     return;
   }
@@ -2382,10 +2421,12 @@ function showStaticNote(){
   // 물어보기는 남겨둔다 — LLM 없이 이 페이지 자료 안에서 찾아 답한다.
   const panel = document.getElementById("chatPanel");
   if (panel) panel.hidden = false;
+  const hasAi = typeof window !== "undefined" && !!window.__AI_ENDPOINT;
   const st = document.getElementById("chatState");
   if (st){
-    st.textContent = "찾아보기";
-    st.title = "이 페이지 자료에서 찾아 답합니다 (등록은 담당자)";
+    st.textContent = hasAi ? "질문만" : "찾아보기";
+    st.title = hasAi ? "물어보면 답합니다. 등록·변경은 담당자가 합니다."
+                     : "이 페이지 자료에서 찾아 답합니다 (등록은 담당자)";
   }
   const q = document.getElementById("q");
   if (q) q.placeholder = "예: 이번 주에 뭐 해야 해?";

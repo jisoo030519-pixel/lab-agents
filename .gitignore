@@ -18,3 +18,7 @@ agents/*/data.json
 
 # 파일 하나짜리 배포본 — 연차가 들어 있어 저장소에 올리지 않는다
 연구실_일정_*.html
+
+# Worker 로컬 산출물 (키는 여기 들어가지 않지만 만약을 위해)
+agents/*/worker/.wrangler/
+agents/*/worker/node_modules/

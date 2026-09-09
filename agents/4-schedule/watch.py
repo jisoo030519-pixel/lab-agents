@@ -1574,6 +1574,33 @@ def cmd_offline(dest=None):
     return out
 
 
+def cmd_ai(url=None):
+    """공개 사이트가 쓸 AI 중계 서버 주소를 등록한다.
+
+    공개 페이지에 API 키를 심으면 링크를 아는 누구나 그 키로 요금을 태울 수 있다.
+    그래서 키는 중계 서버(worker/)에만 두고, 페이지는 그 서버에 질문만 보낸다.
+    주소를 지우려면: python watch.py ai off
+    """
+    st = load_state()
+    if url in ("off", "none", "지우기"):
+        st.pop("ai_endpoint", None)
+        save_state(st)
+        print("AI 연결을 껐습니다. 이제 자료 검색으로만 답합니다.")
+        return
+    if not url:
+        cur = st.get("ai_endpoint")
+        print("현재: %s" % (cur if cur else "안 붙어 있음"))
+        print("설정: python watch.py ai https://lab-schedule-ai.<계정>.workers.dev")
+        print("해제: python watch.py ai off")
+        return
+    if not url.startswith("https://"):
+        raise SystemExit("https:// 로 시작하는 주소여야 합니다.")
+    st["ai_endpoint"] = url.rstrip("/")
+    save_state(st)
+    print("등록했습니다: %s" % st["ai_endpoint"])
+    print("이어서: python watch.py site   (그리고 git push)")
+
+
 def cmd_qr(url=None):
     """주소를 QR 로 만든다 (docs/qr.svg, qr.png).
 
@@ -1626,6 +1653,13 @@ def cmd_site(base_url=None):
     html = html[:i + len(DATA_OPEN)] + payload + html[j:]
 
     SITE.mkdir(exist_ok=True)
+    # 중계 서버(Worker)가 읽어갈 자료. 페이지가 보내주는 게 아니라 서버가 직접 가져간다 —
+    # 페이지를 믿으면 아무나 긴 글을 밀어넣어 요금을 태울 수 있다.
+    (SITE / "data.json").write_text(payload, encoding="utf-8")
+
+    ai = load_state().get("ai_endpoint") or ""
+    ai_tag = ('<script>window.__AI_ENDPOINT=%s;</script>\n'
+              % json.dumps(ai, ensure_ascii=False)) if ai else ""
     (SITE / "index.html").write_text(
         "<!doctype html>\n<html lang=\"ko\">\n<head>\n"
         "<meta charset=\"utf-8\">\n"
@@ -1642,7 +1676,9 @@ def cmd_site(base_url=None):
         "<title>%s</title>\n"
         "<style>:root{color-scheme:light dark}body{margin:0;font:14px system-ui}"
         "img{max-width:100%%}[hidden]{display:none!important}</style>\n"
-        "</head>\n<body>\n%s\n%s\n</body>\n</html>\n" % (title, html, SITE_EXTRA),
+        "%s"
+        "</head>\n<body>\n%s\n%s\n</body>\n</html>\n"
+        % (title, ai_tag, html, SITE_EXTRA),
         encoding="utf-8")
 
     (SITE / "manifest.webmanifest").write_text(json.dumps({
@@ -1680,6 +1716,7 @@ def cmd_site(base_url=None):
     print("  index.html (보기 전용) + 캘린더 %d개" % n)
     if dropped:
         print("  연차 %d명분은 공개본에서 뺐습니다 (사이트는 링크만 알면 누구나 봅니다)" % dropped)
+    print("  AI: %s" % (ai if ai else "안 붙임 (자료 검색으로만 답합니다) — python watch.py ai <주소>"))
     if not icons:
         print("  ⚠ Pillow 가 없어 홈 화면 아이콘을 만들지 못했습니다 — pip install pillow")
     if base_url or load_state().get("site_url"):
@@ -1770,7 +1807,7 @@ CMDS = {"list": cmd_list, "report": cmd_report, "ics": cmd_ics,
         "prune-members": cmd_prune_members}
 # 인자를 줘도 되고 안 줘도 되는 것들. CMDS 에 넣어두면 인자가 조용히 무시된다 —
 # `rotation 2026-09-08` 이 날짜를 씹고 엉뚱한 회차를 보여준 적이 있다.
-OPT_CMDS = {"month": cmd_month, "site": cmd_site, "qr": cmd_qr,
+OPT_CMDS = {"month": cmd_month, "site": cmd_site, "qr": cmd_qr, "ai": cmd_ai,
             "offline": cmd_offline, "rotation": cmd_rotation}
 ARG_CMDS = {"scan-pdf": cmd_scan_pdf, "pull": cmd_pull,
             "upsert-deadlines": cmd_upsert_deadlines,
