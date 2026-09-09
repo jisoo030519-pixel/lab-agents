@@ -24,9 +24,9 @@ MODEL = "claude-sonnet-5"
 # 등록된 일정이 여기 쌓인다. 등록 기능에 반드시 필요하다.
 [[kv_namespaces]]
 binding = "EVENTS"
-id = "여기에_EVENTS_ID_붙여넣기"
+id = "183b16a6119a4cf4b0bf5ac81ff96ef7"
 
 # 사용 횟수를 센다. 없으면 동작은 하지만 한도가 안 걸린다 (권장하지 않음).
 [[kv_namespaces]]
 binding = "RATE"
-id = "여기에_RATE_ID_붙여넣기"
+id = "5a3204dbc0964c2f855533b5f3705276"
