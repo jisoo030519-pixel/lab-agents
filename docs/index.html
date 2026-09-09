@@ -291,7 +291,7 @@ footer code{font-family:"IBM Plex Mono",monospace; background:var(--surface-2); 
 <script>
 const DATA = /*DATA*/{
  "lab": "인천대 연구실",
- "generated": "2026-09-09T11:08:17",
+ "generated": "2026-09-09T11:20:19",
  "today": "2026-09-09",
  "members": [
   "김종우",
@@ -2181,7 +2181,9 @@ const fmtOne = e => {
   const when = n === 0 ? "오늘" : n === 1 ? "내일" : n > 0 ? "D-" + n : "지남";
   const m = memArr(e);
   const who = m.length ? " · " + m.join(", ") : "";
-  return `· ${fmtDate(e.date)}${e.time ? " " + e.time : ""} [${when}] ${e.title}`
+  // 마감은 무슨 마감인지가 핵심이다. "9/18 ICCAS 2026" 만 보면 뭘 하라는 건지 모른다.
+  const what = e.type === "due" && e.kindLabel ? " · " + e.kindLabel : "";
+  return `· ${fmtDate(e.date)}${e.time ? " " + e.time : ""} [${when}] ${e.title}${what}`
        + `${who}${e.room ? " · " + e.room : ""}`;
 };
 function inRange(from, to){
@@ -2227,6 +2229,34 @@ function localAnswer(q){
     const m = plusDays(mondayOf(TODAY_ISO), 7);
     return list(inRange(m, plusDays(m, 6)), "다음 주 일정");
   }
+  // 학회 이름으로 물어보는 경우 — "iccas 일정 언제 나옴?" 같은 것
+  const socs = [...new Set([...(DATA.deadlines||[]).map(d => d.society),
+                            ...(DATA.sessions||[]).map(d => d.society)])].filter(Boolean);
+  const ALIAS = {"한국화학공학회": ["화공", "화학공학", "kiche"]};
+  const low = s.toLowerCase();
+  const soc = socs.find(n => low.includes(n.toLowerCase())
+                          || (ALIAS[n] || []).some(a => low.includes(a)));
+  if (soc){
+    // 마감은 학회명이 title 에, 발표는 sub 에 들어 있다. 둘 다 본다.
+    const of = e => (e.title + " " + (e.sub || "")).includes(soc);
+    const due = EVENTS.filter(e => e.type === "due" && of(e));
+    const talks = EVENTS.filter(e => e.type === "talk" && of(e));
+    const out = [`${soc} 관련해서 지금 아는 것`];
+    const next = due.filter(e => dayDiff(e.date) >= 0);
+    out.push("", next.length ? "다가오는 마감·일정" : "다가오는 마감이 없습니다.");
+    next.slice(0, 5).forEach(e => out.push(fmtOne(e)));
+    out.push("");
+    if (talks.length){
+      out.push("우리 랩 발표");
+      talks.forEach(e => out.push(fmtOne(e)));
+    } else {
+      // 마감은 아는데 발표가 없다 = 프로그램이 아직 안 나온 것
+      out.push("우리 랩 발표 일정은 아직 안 올라왔습니다.");
+      out.push("학회가 프로그램을 공개하면 자동으로 확인해서 여기 올라옵니다.");
+    }
+    return out.join("\n");
+  }
+
   if (/마감|급한|deadline/i.test(s)){
     const due = EVENTS.filter(e => e.type === "due" && dayDiff(e.date) >= 0).slice(0, 5);
     return list(due, "다가오는 마감", "다가오는 마감이 없습니다.");
@@ -2253,10 +2283,22 @@ function localAnswer(q){
     const pre = TODAY_ISO.slice(0, 4) + "-" + String(+mm[1]).padStart(2, "0");
     return list(EVENTS.filter(e => e.date.startsWith(pre)), `${+mm[1]}월 일정`);
   }
-  // 그 밖엔 글자로 찾는다
-  const hits = EVENTS.filter(e =>
-    (e.title + " " + (e.note || "") + " " + memArr(e).join(" ")).includes(s)).slice(0, 8);
-  if (s.length >= 2 && hits.length) return list(hits, `"${s}" 로 찾은 일정`);
+  // 그 밖엔 낱말로 찾는다.
+  // 문장을 통째로 넣고 찾으면 "iccas 일정 언제 나옴?" 처럼 물었을 때 아무것도 안 걸린다.
+  const STOP = new Set(["일정","언제","나옴","나와","나오","뭐","무엇","해야","하는","있어","있나",
+    "알려줘","알려","좀","해줘","어떻게","어디","누구","며칠","얼마나","인가요","까지","부터","이야",
+    "이에요","예요","인가","건가","이란","관련","정보","알고","싶어","줘","요","은","는","이","가"]);
+  const words = low.replace(/[?!.,·\-—()\[\]\/]/g, " ").split(/\s+/)
+    .map(w => w.replace(/(은|는|이|가|을|를|의|에|도|만|와|과|랑|이랑|께서|에서|으로|로)$/, ""))
+    .filter(w => w.length >= 2 && !STOP.has(w));
+  if (words.length){
+    const hits = EVENTS.filter(e => {
+      const hay = (e.title + " " + (e.note || "") + " " + memArr(e).join(" ")
+                 + " " + (e.sub || "") + " " + (e.room || "")).toLowerCase();
+      return words.some(w => hay.includes(w));
+    }).sort((a,b) => a.date.localeCompare(b.date)).slice(0, 8);
+    if (hits.length) return list(hits, `"${words.join(" ")}" 로 찾은 일정`);
+  }
   return "이 페이지는 자료 안에서만 찾아 답합니다. 이렇게 물어보세요:\n"
        + "· 오늘 / 내일 / 이번 주 / 다음 주\n· 가장 급한 마감\n· 10월 발표\n· 이승훈 (이름)\n\n"
        + "새로 등록하거나 일정을 바꾸려면 담당자에게 말해주세요.";
