@@ -274,7 +274,7 @@ footer code{font-family:"IBM Plex Mono",monospace; background:var(--surface-2); 
 <script>
 const DATA = /*DATA*/{
   "lab": "인천대 연구실",
-  "generated": "2026-09-09T14:49:21",
+  "generated": "2026-09-09T15:00:08",
   "today": "2026-09-09",
   "members": [
     "김종우",
@@ -2077,15 +2077,28 @@ const siteStore = {
       method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(rec)});
     const j = await r.json().catch(() => null);
     if (!r.ok || !j || j.error) throw new Error((j && j.error) || ("등록 실패 " + r.status));
+    // 서버가 아직 못 따라와도 화면에는 바로 뜨게 한다
+    sitePending.set(j.id, {rec:{...rec, id:j.id}, at:Date.now(), deleted:false});
     return j;
   },
   async remove(id){
     const r = await fetch(this.base() + "/events/" + encodeURIComponent(id), {method:"DELETE"});
     const j = await r.json().catch(() => null);
     if (!r.ok || !j || j.error) throw new Error((j && j.error) || ("취소 실패 " + r.status));
+    // 아직 목록에 남아 있어도 화면에서는 바로 사라지게 한다
+    sitePending.set(id, {rec:null, at:Date.now(), deleted:true});
     return j;
   },
 };
+
+/* 방금 내가 등록·취소한 것.
+
+   저장소(Cloudflare KV)는 쓴 직후에 바로 읽으면 옛 내용이 올 수 있다.
+   그래서 등록하자마자 목록을 다시 받으면 방금 넣은 것이 빠져 있고,
+   화면에서는 "등록했습니다" 라고 해놓고 캘린더에는 안 뜨는 일이 난다.
+   서버가 따라올 때까지 잠깐 내 쪽에서 얹어둔다. 시간이 지나면 저절로 풀린다. */
+const sitePending = new Map();      // id -> {rec, at, deleted}
+const PENDING_MS = 120000;
 
 /* 서버에 있는 등록 일정을 화면에 싣는다. addedEvents 를 그대로 쓰므로
    캘린더·목록·물어보기·중복 방어가 전부 이미 동작한다. */
@@ -2093,7 +2106,16 @@ async function siteRefresh(){
   if (!siteStore.on()) return;
   try {
     const rows = await siteStore.load();
-    addedEvents = rows.map(e => ({
+    const now = Date.now();
+    for (const [id, p] of sitePending) if (now - p.at > PENDING_MS) sitePending.delete(id);
+
+    const byId = new Map(rows.map(r => [r.id, r]));
+    for (const [id, p] of sitePending){
+      if (p.deleted) byId.delete(id);          // 지웠는데 아직 남아 있으면 감춘다
+      else if (!byId.has(id)) byId.set(id, p.rec);   // 넣었는데 아직 안 보이면 얹는다
+    }
+
+    addedEvents = [...byId.values()].map(e => ({
       id:e.id, title:e.title, date:e.date, time:e.time || "", end:"",
       member:e.member || [], kind:"etc",
       note:(e.note || "") + (e.by ? (e.note ? " · " : "") + "등록: " + e.by : ""),
