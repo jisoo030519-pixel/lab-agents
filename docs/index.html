@@ -291,8 +291,8 @@ footer code{font-family:"IBM Plex Mono",monospace; background:var(--surface-2); 
 <script>
 const DATA = /*DATA*/{
  "lab": "인천대 연구실",
- "generated": "2026-09-08T14:19:36",
- "today": "2026-09-08",
+ "generated": "2026-09-09T11:08:17",
+ "today": "2026-09-09",
  "members": [
   "김종우",
   "현지수",
@@ -1280,7 +1280,13 @@ const TALK_LABEL = {oral:"구두발표", poster:"포스터", invited:"초청강�
 const MINE_LABEL = {revision:"논문 수정본", submission:"논문 투고", review:"리뷰", report:"보고서",
   proposal:"제안서", seminar:"세미나", meeting:"미팅", etc:"기타"};
 
-const TODAY = new Date(DATA.today + "T00:00:00");
+/* "오늘" 은 페이지를 만든 날이 아니라 지금 이 순간이어야 한다.
+   빌드 때 박아두면 다음날 열었을 때 어제가 오늘로 표시되고 D-day 가 하루씩 밀린다.
+   연구실이 한국에 있으므로 KST 로 고정한다 — 해외에서 열어도 같은 날을 본다.
+   자정이 지나면 scheduleMidnight() 이 다시 그린다. */
+const kstIso = () => new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+let TODAY_ISO = kstIso();
+let TODAY = new Date(TODAY_ISO + "T00:00:00");
 const key = d => d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
 const dayDiff = iso => Math.round((new Date(iso.slice(0,10)+"T00:00:00") - TODAY) / 86400000);
 
@@ -1471,7 +1477,7 @@ function renderCalendar(){
           >${esc(txt)}<span class="x">×</span></div>`;
       return `<div class="ev ${cls}" title="${esc(e.title)}">${esc(txt)}</div>`;
     }).join("");
-    cells.push(`<div class="cell${out ? " out" : ""}${k === DATA.today ? " today" : ""}">
+    cells.push(`<div class="cell${out ? " out" : ""}${k === TODAY_ISO ? " today" : ""}">
       <span class="dnum mono">${d.getDate()}</span>${evs}</div>`);
     if (i >= 34 && d.getMonth() !== m && d.getDay() === 6) break;
   }
@@ -1560,7 +1566,7 @@ function renderLeave(){
 
 /* ---------- 일정 물어보기 ---------- */
 function factSheet(){
-  const L = [`오늘은 ${DATA.today} 입니다. 아래는 ${DATA.lab}의 일정 자료입니다.`, ""];
+  const L = [`오늘은 ${TODAY_ISO} 입니다. 아래는 ${DATA.lab}의 일정 자료입니다.`, ""];
   const dd = iso => { const n = dayDiff(iso); return n === 0 ? "오늘" : (n > 0 ? `D-${n}` : `${-n}일 지남`); };
   const D = iso => `${iso} ${fmtDate(iso)}`;
 
@@ -1637,7 +1643,7 @@ const RULES = `당신은 위 연구실의 일정 비서입니다. 묻는 말에 
 - 그 외 일정(미팅·마감·할 일) → add_event
 - 정기 일정의 그 주만 바꾸기 → skip_week / move_week / restore_week
 - 날짜와 시각은 들은 대로 넘기면 됩니다. "9/20", "9월 20일", "오후 2시" 다 알아듣습니다.
-  연도를 안 말하면 ${DATA.today.slice(0,4)}년입니다.
+  연도를 안 말하면 ${TODAY_ISO.slice(0,4)}년입니다.
 - **이 연구실은 종일 연차만 씁니다. 반차는 없습니다.** 종일인지 반차인지 되묻지 말고 바로 등록하세요.
 - 이름과 날짜가 있으면 그것만으로 바로 등록하세요. 확인차 한 번 더 묻지 마세요.
 - **요일을 직접 계산하지 마세요.** 도구가 돌려준 dateLabel 과 자료에 적힌 요일을 그대로 쓰세요.
@@ -1757,7 +1763,7 @@ const DAYNUM = {"일":0,"월":1,"화":2,"수":3,"목":4,"금":5,"토":6};
 
 function weekMonday(spec){
   const s = String(spec == null ? "" : spec).trim();
-  const base = new Date(DATA.today + "T00:00:00Z");
+  const base = new Date(TODAY_ISO + "T00:00:00Z");
   let ref;
   if (!s || /^(next|다음\s*주|다음주)$/i.test(s)) ref = new Date(base.getTime() + 7 * 86400000);
   else if (/^(this|이번\s*주|이번주|금주)$/i.test(s)) ref = base;
@@ -1908,7 +1914,7 @@ function findRoutine(title, date){
   const name = hit[0];
   const occ = (DATA.personal || []).find(p => p.title === name && p.due.slice(0,10) === d);
   if (!occ){
-    const near = (DATA.personal || []).filter(p => p.title === name && p.due >= DATA.today)
+    const near = (DATA.personal || []).filter(p => p.title === name && p.due >= TODAY_ISO)
       .slice(0,3).map(p => fmtDate(p.due.slice(0,10)));
     throw new Error(`${fmtDate(d)} 에는 ${name} 회차가 없습니다. 가까운 회차: ${near.join(", ") || "없음"}`);
   }
@@ -2148,7 +2154,10 @@ function showHints(){
   const ex = canWrite
     ? ["현지수 연차 9/20에 등록해줘", "이번 주에 뭐 해야 해?", "이승훈 남은 연차 며칠?",
        "10/15 14시 랩 미팅 잡아줘"]
-    : ["이번 주에 뭐 해야 해?", "가장 급한 마감은?", "이승훈 남은 연차 며칠?", "10월 발표 누가 언제 해?"];
+    : sampleFn
+      ? ["이번 주에 뭐 해야 해?", "가장 급한 마감은?", "이승훈 남은 연차 며칠?", "10월 발표 누가 언제 해?"]
+      // 런타임 없이 자료에서 찾아 답하는 모드 — 실제로 답할 수 있는 것만 보여준다
+      : ["오늘 일정", "이번 주에 뭐 해야 해?", "가장 급한 마감은?", "10월 발표"];
   const box = document.createElement("div");
   box.className = "hint";
   box.innerHTML = "<b>이렇게 물어보세요</b>";
@@ -2161,8 +2170,109 @@ function showHints(){
   logEl().appendChild(box);
 }
 
+/* ── LLM 없이 답하기 ──────────────────────────────────────────────
+   공개 사이트와 배포본에는 Claude 런타임이 없다. 공개된 페이지에 API 키를
+   심으면 링크를 아는 누구나 그 키로 요금을 태울 수 있으므로 절대 넣지 않는다.
+   대신 화면에 이미 들어 있는 자료로 답한다 — 자주 묻는 것은 다 여기서 나온다. */
+// member 는 발표는 문자열 한 명, 정기 일정은 배열이다. 한쪽으로 맞춘다.
+const memArr = e => Array.isArray(e.member) ? e.member : (e.member ? [e.member] : []);
+const fmtOne = e => {
+  const n = dayDiff(e.date);
+  const when = n === 0 ? "오늘" : n === 1 ? "내일" : n > 0 ? "D-" + n : "지남";
+  const m = memArr(e);
+  const who = m.length ? " · " + m.join(", ") : "";
+  return `· ${fmtDate(e.date)}${e.time ? " " + e.time : ""} [${when}] ${e.title}`
+       + `${who}${e.room ? " · " + e.room : ""}`;
+};
+function inRange(from, to){
+  return EVENTS.filter(e => e.date >= from && e.date <= to)
+               .sort((a,b) => a.date.localeCompare(b.date) || (a.time||"").localeCompare(b.time||""));
+}
+const mondayOf = iso => {
+  const d = new Date(iso + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+};
+const plusDays = (iso, n) => {
+  const d = new Date(iso + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+
+function localAnswer(q){
+  const s = q.trim();
+  const list = (rows, head, empty) =>
+    rows.length ? head + "\n" + rows.map(fmtOne).join("\n") : (empty || head + "\n· 없습니다.");
+
+  // 연차 — 공개본에는 자료 자체를 싣지 않는다
+  if (/연차|휴가/.test(s)){
+    const ppl = leavePeople();
+    if (!ppl.length)
+      return "연차는 이 페이지에 싣지 않습니다. 개인 정보라 링크를 아는 누구나 보는 곳에는 두지 않았습니다.\n담당자에게 물어보세요.";
+    const hit = ppl.find(p => s.includes(p.name));
+    if (hit) return `${hit.name} 님: 남은 연차 ${hit.left}일 (총 ${hit.total}일 중 ${hit.used}일 사용)`;
+    return "연차 현황\n" + ppl.map(p => `· ${p.name} ${p.left}/${p.total}일`).join("\n");
+  }
+
+  if (/오늘/.test(s))   return list(inRange(TODAY_ISO, TODAY_ISO), `오늘(${fmtDate(TODAY_ISO)}) 일정`);
+  if (/내일/.test(s)){
+    const t = plusDays(TODAY_ISO, 1);
+    return list(inRange(t, t), `내일(${fmtDate(t)}) 일정`);
+  }
+  if (/이번\s*주/.test(s)){
+    const m = mondayOf(TODAY_ISO);
+    return list(inRange(m, plusDays(m, 6)), "이번 주 일정");
+  }
+  if (/다음\s*주/.test(s)){
+    const m = plusDays(mondayOf(TODAY_ISO), 7);
+    return list(inRange(m, plusDays(m, 6)), "다음 주 일정");
+  }
+  if (/마감|급한|deadline/i.test(s)){
+    const due = EVENTS.filter(e => e.type === "due" && dayDiff(e.date) >= 0).slice(0, 5);
+    return list(due, "다가오는 마감", "다가오는 마감이 없습니다.");
+  }
+  if (/발표|포스터|구두|좌장/.test(s)){
+    const mm = s.match(/(\d{1,2})\s*월/);
+    let talks = EVENTS.filter(e => e.type === "talk");
+    if (mm){
+      const pre = TODAY_ISO.slice(0, 4) + "-" + String(+mm[1]).padStart(2, "0");
+      talks = talks.filter(e => e.date.startsWith(pre));
+      return list(talks, `${+mm[1]}월 발표`, `${+mm[1]}월에 잡힌 발표가 없습니다.`);
+    }
+    return list(talks.filter(e => dayDiff(e.date) >= 0).slice(0, 8), "예정된 발표");
+  }
+  // 사람 이름
+  const who = (DATA.members || []).find(n => s.includes(n));
+  if (who){
+    const mine = EVENTS.filter(e => dayDiff(e.date) >= 0
+      && (memArr(e).includes(who) || !memArr(e).length)).slice(0, 8);
+    return list(mine, `${who} 님 앞으로의 일정 (랩 공통 포함)`);
+  }
+  const mm = s.match(/(\d{1,2})\s*월/);
+  if (mm){
+    const pre = TODAY_ISO.slice(0, 4) + "-" + String(+mm[1]).padStart(2, "0");
+    return list(EVENTS.filter(e => e.date.startsWith(pre)), `${+mm[1]}월 일정`);
+  }
+  // 그 밖엔 글자로 찾는다
+  const hits = EVENTS.filter(e =>
+    (e.title + " " + (e.note || "") + " " + memArr(e).join(" ")).includes(s)).slice(0, 8);
+  if (s.length >= 2 && hits.length) return list(hits, `"${s}" 로 찾은 일정`);
+  return "이 페이지는 자료 안에서만 찾아 답합니다. 이렇게 물어보세요:\n"
+       + "· 오늘 / 내일 / 이번 주 / 다음 주\n· 가장 급한 마감\n· 10월 발표\n· 이승훈 (이름)\n\n"
+       + "새로 등록하거나 일정을 바꾸려면 담당자에게 말해주세요.";
+}
+
 async function ask(text){
-  if (busy || !sampleFn || !text.trim()) return;
+  if (busy || !text.trim()) return;
+  if (!sampleFn){                       // 런타임이 없으면 자료에서 직접 답한다
+    const hint = logEl().querySelector(".hint");
+    if (hint) hint.remove();
+    bubble("me", text);
+    document.getElementById("q").value = "";
+    bubble("ai", localAnswer(text));
+    logEl().scrollTop = logEl().scrollHeight;
+    return;
+  }
   const hint = logEl().querySelector(".hint");
   if (hint) hint.remove();
 
@@ -2218,12 +2328,24 @@ function primeTools(){ activeTools = TOOLS.slice(); }
 /* 정적 배포(웹사이트)에서는 채팅·등록이 없다. 왜 없는지, 어디서 하는지 알려준다. */
 function showStaticNote(){
   const box = document.getElementById("demo");
-  if (!box) return;
-  box.hidden = false;
-  box.textContent = "보기 전용";
-  box.title = "등록·변경은 담당자가 합니다";
+  if (box){
+    box.hidden = false;
+    box.textContent = "보기 전용";
+    box.title = "등록·변경은 담당자가 합니다";
+  }
   const foot = document.getElementById("staticFoot");
   if (foot) foot.hidden = false;
+  // 물어보기는 남겨둔다 — LLM 없이 이 페이지 자료 안에서 찾아 답한다.
+  const panel = document.getElementById("chatPanel");
+  if (panel) panel.hidden = false;
+  const st = document.getElementById("chatState");
+  if (st){
+    st.textContent = "찾아보기";
+    st.title = "이 페이지 자료에서 찾아 답합니다 (등록은 담당자)";
+  }
+  const q = document.getElementById("q");
+  if (q) q.placeholder = "예: 이번 주에 뭐 해야 해?";
+  showHints();
 }
 
 async function initChat(){
@@ -2256,12 +2378,37 @@ activeTools = [];   // TOOLS 정의 뒤에 채운다
 
 function render(){ renderFilters(); renderTiles(); renderWeekly(); renderCalendar(); renderList(); renderLeave(); }
 
+/* 날짜 넘어가기.
+   켜놓고 잔 화면이나 어제 열어둔 폰이 계속 어제를 가리키면 안 된다.
+   자정에 한 번, 그리고 화면을 다시 볼 때마다 확인한다 — 폰은 백그라운드에서
+   타이머를 늦추거나 멈추므로 타이머만 믿으면 안 넘어간다. */
+function rollDate(){
+  const now = kstIso();
+  if (now === TODAY_ISO) return false;
+  const wasCurrentMonth = cursor.getFullYear() === TODAY.getFullYear()
+                       && cursor.getMonth() === TODAY.getMonth();
+  TODAY_ISO = now;
+  TODAY = new Date(TODAY_ISO + "T00:00:00");
+  if (wasCurrentMonth) cursor = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+  buildAll();
+  render();
+  return true;
+}
+function scheduleMidnight(){
+  const shifted = Date.now() + 9 * 3600000;                  // KST 로 옮긴 시각
+  const untilMidnight = 86400000 - (shifted % 86400000);
+  setTimeout(() => { rollDate(); scheduleMidnight(); }, untilMidnight + 1000);
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden) rollDate(); });
+window.addEventListener("focus", rollDate);
+
 document.getElementById("labname").textContent = DATA.lab + " 연구·학회 일정";
 document.getElementById("stamp").textContent = "갱신 " + DATA.generated.replace("T", " ").slice(0, 16);
 document.getElementById("prev").onclick = () => { cursor.setMonth(cursor.getMonth() - 1); renderCalendar(); };
 document.getElementById("next").onclick = () => { cursor.setMonth(cursor.getMonth() + 1); renderCalendar(); };
 buildAll();
 render();
+scheduleMidnight();
 initDb().then(initChat);
 </script>
 
