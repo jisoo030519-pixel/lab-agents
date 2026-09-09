@@ -1273,13 +1273,36 @@ SITE_EXTRA = u"""
 .subrow .gg{background:#eef1f6;color:#3c4655}
 .steps{margin:0;padding-left:18px;color:#4b525e;font-size:13px}
 .steps li{margin:3px 0}
+.addgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;align-items:center}
+.addgrid input{font:inherit;font-size:13px;padding:8px 10px;border:1px solid #d9dee6;
+  border-radius:9px;background:#fff;color:#171a21;min-width:0}
+.addgrid input:focus{outline:2px solid #1d4ed8;outline-offset:-1px}
+.addgrid button{font:inherit;font-size:13px;font-weight:600;padding:9px 16px;border:0;
+  border-radius:9px;background:#1d4ed8;color:#fff;cursor:pointer}
+.addgrid button:disabled{opacity:.5;cursor:default}
+#addMsg.bad{color:#b42318} #addMsg.good{color:#067647}
 @media (prefers-color-scheme:dark){
  .addon section{background:#171a1f;border-color:#2a2f38}
  .addon p,.steps{color:#9aa2ae} .addon .hint{color:#7b828e}
  .subrow{border-color:#2a2f38} .subrow .gg{background:#242932;color:#c9d0da}
+ .addgrid input{background:#0f1216;border-color:#2a2f38;color:#e6e9ef}
 }
 </style>
 <div class="addon">
+  <section id="addBox" hidden>
+    <h2>일정 추가</h2>
+    <p>랩 사람 누구나 등록할 수 있습니다. 잘못 넣었으면 캘린더에서 그 항목을 눌러 지우면 됩니다.</p>
+    <form id="addForm" class="addgrid" autocomplete="off">
+      <input id="aTitle" placeholder="무슨 일정 (예: 회식)" maxlength="60" required>
+      <input id="aDate" placeholder="날짜 (예: 9/25)" maxlength="20" required>
+      <input id="aTime" placeholder="시각 (예: 오후 6시, 비우면 종일)" maxlength="20">
+      <input id="aWho" placeholder="누구 (비우면 랩 전체)" maxlength="60">
+      <input id="aBy" placeholder="등록자 (본인 이름)" maxlength="20">
+      <input id="aNote" placeholder="비고 (선택)" maxlength="200">
+      <button type="submit" id="aGo">등록</button>
+    </form>
+    <p class="hint" id="addMsg"></p>
+  </section>
   <section>
     <h2>내 일정 폰에 넣기</h2>
     <p>이름을 누르면 폰 캘린더에 <b>구독</b>으로 들어갑니다. 한 번만 해두면 일정이 바뀔 때마다 자동으로 따라옵니다 — 다시 받을 필요가 없습니다.</p>
@@ -1299,6 +1322,36 @@ SITE_EXTRA = u"""
 </div>
 <script>
 (function(){
+  /* 일정 추가 — 중계 서버가 붙어 있을 때만 보인다 */
+  var box = document.getElementById("addBox");
+  if (!box || typeof siteStore === "undefined" || !siteStore.on()) { if (box) box.hidden = true; }
+  else {
+    box.hidden = false;
+    var msg = document.getElementById("addMsg");
+    var btn = document.getElementById("aGo");
+    var say = function(t, cls){ msg.textContent = t; msg.className = "hint " + (cls || ""); };
+    document.getElementById("addForm").onsubmit = function(ev){
+      ev.preventDefault();
+      var g = function(id){ return document.getElementById(id).value.trim(); };
+      var d, t;
+      /* 날짜·시각 해석은 대시보드와 같은 함수를 쓴다. 여기서 따로 파싱하면 두 곳이 어긋난다. */
+      try { d = checkDate(g("aDate")); } catch (e) { return say(e.message, "bad"); }
+      try { t = g("aTime") ? checkTime(g("aTime")) : ""; } catch (e) { return say(e.message, "bad"); }
+      var who = g("aWho").split(/[,·\s]+/).filter(Boolean);
+      btn.disabled = true; say("등록 중…");
+      siteStore.add({ title:g("aTitle"), date:d, time:t, member:who, note:g("aNote"), by:g("aBy") })
+        .then(function(){
+          say(g("aTitle") + " " + fmtDate(d) + (t ? " " + t : "") + " 등록했습니다.", "good");
+          ["aTitle","aDate","aTime","aWho","aNote"].forEach(function(id){
+            document.getElementById(id).value = "";   // 등록자 이름은 남겨둔다
+          });
+          return siteRefresh();
+        })
+        .catch(function(e){ say(e.message, "bad"); })
+        .then(function(){ btn.disabled = false; });
+    };
+  }
+
   /* 주소를 코드에 박지 않는다. 저장소 이름이 바뀌거나 다른 곳에 올려도 그대로 동작해야 한다. */
   var base = location.href.split(/[?#]/)[0].replace(/[^\\/]*$/, "");
   var web  = base.replace(/^https?:/, "webcal:");
@@ -1574,31 +1627,51 @@ def cmd_offline(dest=None):
     return out
 
 
+def _endpoint_cmd(key, label, url, extra=""):
+    """중계 서버 주소를 state 에 저장한다. ai / store 가 같은 일을 한다."""
+    st = load_state()
+    if url in ("off", "none", "지우기"):
+        st.pop(key, None)
+        save_state(st)
+        print("%s 연결을 껐습니다." % label)
+        return
+    if not url:
+        cur = st.get(key)
+        print("현재 %s: %s" % (label, cur if cur else "안 붙어 있음"))
+        print("설정: python watch.py %s https://lab-schedule.<계정>.workers.dev"
+              % ("store" if key == "store_endpoint" else "ai"))
+        print("해제: python watch.py %s off" % ("store" if key == "store_endpoint" else "ai"))
+        return
+    if not url.startswith("https://"):
+        raise SystemExit("https:// 로 시작하는 주소여야 합니다.")
+    st[key] = url.rstrip("/")
+    save_state(st)
+    print("%s 등록: %s" % (label, st[key]))
+    if extra:
+        print(extra)
+    print("이어서: python watch.py site   (그리고 git push)")
+
+
+def cmd_store(url=None):
+    """사이트에서 누구나 일정을 등록할 수 있게 한다.
+
+    GitHub Pages 는 정적이라 글을 쓸 곳이 없다. 등록한 것을 중계 서버(worker/)에
+    맡긴다. API 키가 필요 없는 기능이다 — Cloudflare 계정만 있으면 된다.
+
+    주의: 링크를 아는 사람은 누구나 등록·취소할 수 있다. 공용 화이트보드로
+    쓰려는 것이므로 의도된 동작이지만, 링크를 밖에 뿌리면 안 된다.
+    """
+    _endpoint_cmd("store_endpoint", "등록 서버", url,
+                  extra="⚠ 이제 링크를 아는 사람은 누구나 등록·취소할 수 있습니다.")
+
+
 def cmd_ai(url=None):
     """공개 사이트가 쓸 AI 중계 서버 주소를 등록한다.
 
     공개 페이지에 API 키를 심으면 링크를 아는 누구나 그 키로 요금을 태울 수 있다.
     그래서 키는 중계 서버(worker/)에만 두고, 페이지는 그 서버에 질문만 보낸다.
-    주소를 지우려면: python watch.py ai off
     """
-    st = load_state()
-    if url in ("off", "none", "지우기"):
-        st.pop("ai_endpoint", None)
-        save_state(st)
-        print("AI 연결을 껐습니다. 이제 자료 검색으로만 답합니다.")
-        return
-    if not url:
-        cur = st.get("ai_endpoint")
-        print("현재: %s" % (cur if cur else "안 붙어 있음"))
-        print("설정: python watch.py ai https://lab-schedule-ai.<계정>.workers.dev")
-        print("해제: python watch.py ai off")
-        return
-    if not url.startswith("https://"):
-        raise SystemExit("https:// 로 시작하는 주소여야 합니다.")
-    st["ai_endpoint"] = url.rstrip("/")
-    save_state(st)
-    print("등록했습니다: %s" % st["ai_endpoint"])
-    print("이어서: python watch.py site   (그리고 git push)")
+    _endpoint_cmd("ai_endpoint", "AI 서버", url)
 
 
 def cmd_qr(url=None):
@@ -1657,9 +1730,15 @@ def cmd_site(base_url=None):
     # 페이지를 믿으면 아무나 긴 글을 밀어넣어 요금을 태울 수 있다.
     (SITE / "data.json").write_text(payload, encoding="utf-8")
 
-    ai = load_state().get("ai_endpoint") or ""
-    ai_tag = ('<script>window.__AI_ENDPOINT=%s;</script>\n'
-              % json.dumps(ai, ensure_ascii=False)) if ai else ""
+    st = load_state()
+    ai = st.get("ai_endpoint") or ""
+    sv = st.get("store_endpoint") or ""
+    tags = []
+    if ai:
+        tags.append("window.__AI_ENDPOINT=%s;" % json.dumps(ai, ensure_ascii=False))
+    if sv:
+        tags.append("window.__STORE_ENDPOINT=%s;" % json.dumps(sv, ensure_ascii=False))
+    ai_tag = ("<script>%s</script>\n" % "".join(tags)) if tags else ""
     (SITE / "index.html").write_text(
         "<!doctype html>\n<html lang=\"ko\">\n<head>\n"
         "<meta charset=\"utf-8\">\n"
@@ -1716,7 +1795,8 @@ def cmd_site(base_url=None):
     print("  index.html (보기 전용) + 캘린더 %d개" % n)
     if dropped:
         print("  연차 %d명분은 공개본에서 뺐습니다 (사이트는 링크만 알면 누구나 봅니다)" % dropped)
-    print("  AI: %s" % (ai if ai else "안 붙임 (자료 검색으로만 답합니다) — python watch.py ai <주소>"))
+    print("  등록: %s" % (sv if sv else "안 붙임 (보기 전용) — python watch.py store <주소>"))
+    print("  AI:  %s" % (ai if ai else "안 붙임 (자료 검색으로만 답합니다) — python watch.py ai <주소>"))
     if not icons:
         print("  ⚠ Pillow 가 없어 홈 화면 아이콘을 만들지 못했습니다 — pip install pillow")
     if base_url or load_state().get("site_url"):
@@ -1807,7 +1887,7 @@ CMDS = {"list": cmd_list, "report": cmd_report, "ics": cmd_ics,
         "prune-members": cmd_prune_members}
 # 인자를 줘도 되고 안 줘도 되는 것들. CMDS 에 넣어두면 인자가 조용히 무시된다 —
 # `rotation 2026-09-08` 이 날짜를 씹고 엉뚱한 회차를 보여준 적이 있다.
-OPT_CMDS = {"month": cmd_month, "site": cmd_site, "qr": cmd_qr, "ai": cmd_ai,
+OPT_CMDS = {"month": cmd_month, "site": cmd_site, "qr": cmd_qr, "ai": cmd_ai, "store": cmd_store,
             "offline": cmd_offline, "rotation": cmd_rotation}
 ARG_CMDS = {"scan-pdf": cmd_scan_pdf, "pull": cmd_pull,
             "upsert-deadlines": cmd_upsert_deadlines,

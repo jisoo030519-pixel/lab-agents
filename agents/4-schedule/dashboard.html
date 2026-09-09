@@ -274,7 +274,7 @@ footer code{font-family:"IBM Plex Mono",monospace; background:var(--surface-2); 
 <script>
 const DATA = /*DATA*/{
   "lab": "인천대 연구실",
-  "generated": "2026-09-09T14:20:08",
+  "generated": "2026-09-09T14:30:51",
   "today": "2026-09-09",
   "members": [
     "김종우",
@@ -1404,7 +1404,7 @@ EVENTS = [
     type:"mine", date:p.date, time:p.time || null, endTime:p.end || null,
     member:p.member || [], title:p.title, kindLabel:MINE_LABEL[p.kind] || p.kind || "기타",
     room:"", note:p.note || "", changedFrom:null, sub:"연구 일정", repeat:"", added:true,
-    coll:"events", docId:p.id
+    coll:p.remote ? "remote" : "events", docId:p.id
   })),
   ...allLeaves().map(l => ({
     type:"leave", date:l.date, time:null, member:[l.name],
@@ -1516,7 +1516,8 @@ function renderCalendar(){
         : e.kindLabel;
       const cls = e.type === "talk" ? "talk" : e.type === "leave" ? "leave"
         : e.type === "mine" ? "mine" : "due" + (far ? " far" : "");
-      if (e.added && e.docId && store)
+      // 아티팩트면 store, 공개 사이트면 중계 서버. 둘 중 하나라도 있으면 지울 수 있다.
+      if (e.added && e.docId && (store || e.coll === "remote"))
         return `<div class="ev ${cls} own" data-del="${esc(e.coll)}|${esc(e.docId)}"
           title="${esc(e.title)} — 클릭하면 지웁니다" role="button" tabindex="0"
           >${esc(txt)}<span class="x">×</span></div>`;
@@ -2057,10 +2058,62 @@ async function dbAddEvent({title, date, time, member, kind, note}){
 
 function applySnapshots(){ buildAll(); render(); }
 
+/* ── 공개 사이트의 공용 저장소 ─────────────────────────────────
+   GitHub Pages 는 정적이라 글을 쓸 곳이 없다. 등록한 것을 중계 서버에 맡긴다.
+   랩 사람 누구나 등록·취소할 수 있다 — 공용 화이트보드처럼 쓰는 것이 목적이다.
+   서버가 없으면(주소 미설정) 아무 일도 안 하고 보기 전용으로 남는다. */
+const siteStore = {
+  base(){ return (typeof window !== "undefined" && window.__STORE_ENDPOINT) || ""; },
+  on(){ return !!this.base(); },
+  async load(){
+    if (!this.on()) return [];
+    const r = await fetch(this.base() + "/events", {headers:{"Accept":"application/json"}});
+    if (!r.ok) throw new Error("목록 " + r.status);
+    const j = await r.json();
+    return (j.events || []).map(e => ({...e, member: e.member || []}));
+  },
+  async add(rec){
+    const r = await fetch(this.base() + "/events", {
+      method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(rec)});
+    const j = await r.json().catch(() => null);
+    if (!r.ok || !j || j.error) throw new Error((j && j.error) || ("등록 실패 " + r.status));
+    return j;
+  },
+  async remove(id){
+    const r = await fetch(this.base() + "/events/" + encodeURIComponent(id), {method:"DELETE"});
+    const j = await r.json().catch(() => null);
+    if (!r.ok || !j || j.error) throw new Error((j && j.error) || ("취소 실패 " + r.status));
+    return j;
+  },
+};
+
+/* 서버에 있는 등록 일정을 화면에 싣는다. addedEvents 를 그대로 쓰므로
+   캘린더·목록·물어보기·중복 방어가 전부 이미 동작한다. */
+async function siteRefresh(){
+  if (!siteStore.on()) return;
+  try {
+    const rows = await siteStore.load();
+    addedEvents = rows.map(e => ({
+      id:e.id, title:e.title, date:e.date, time:e.time || "", end:"",
+      member:e.member || [], kind:"etc",
+      note:(e.note || "") + (e.by ? (e.note ? " · " : "") + "등록: " + e.by : ""),
+      remote:true,
+    }));
+    buildAll(); render();
+  } catch (e) {
+    console.warn("등록 일정을 불러오지 못했습니다:", e.message);
+  }
+}
+
 /* 이 화면에서 등록한 항목은 캘린더·목록에서 바로 지운다 — 챗봇을 거치지 않는다 */
 async function deleteDoc(coll, id, label){
-  if (!store) return;
   if (!confirm(`${label}\n\n지울까요?`)) return;
+  if (coll === "remote"){
+    try { await siteStore.remove(id); await siteRefresh(); }
+    catch (e) { alert("지우지 못했습니다: " + e.message); }
+    return;
+  }
+  if (!store) return;
   try {
     await store.collection(coll).doc(id).delete();
   } catch (e) {
@@ -2638,8 +2691,12 @@ function scheduleMidnight(){
   const untilMidnight = 86400000 - (shifted % 86400000);
   setTimeout(() => { rollDate(); scheduleMidnight(); }, untilMidnight + 1000);
 }
-document.addEventListener("visibilitychange", () => { if (!document.hidden) rollDate(); });
-window.addEventListener("focus", rollDate);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) return;
+  rollDate();
+  siteRefresh();     // 다른 사람이 등록한 것을 화면 돌아올 때 받아온다
+});
+window.addEventListener("focus", () => { rollDate(); siteRefresh(); });
 
 document.getElementById("labname").textContent = DATA.lab + " 연구·학회 일정";
 document.getElementById("stamp").textContent = "갱신 " + DATA.generated.replace("T", " ").slice(0, 16);
@@ -2649,4 +2706,5 @@ buildAll();
 render();
 scheduleMidnight();
 initDb().then(initChat);
+siteRefresh();      // 공개 사이트에서 등록된 일정 (주소가 없으면 아무 일도 안 한다)
 </script>

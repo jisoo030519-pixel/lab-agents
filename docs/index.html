@@ -291,7 +291,7 @@ footer code{font-family:"IBM Plex Mono",monospace; background:var(--surface-2); 
 <script>
 const DATA = /*DATA*/{
  "lab": "인천대 연구실",
- "generated": "2026-09-09T14:20:07",
+ "generated": "2026-09-09T14:30:51",
  "today": "2026-09-09",
  "members": [
   "김종우",
@@ -1359,7 +1359,7 @@ EVENTS = [
     type:"mine", date:p.date, time:p.time || null, endTime:p.end || null,
     member:p.member || [], title:p.title, kindLabel:MINE_LABEL[p.kind] || p.kind || "기타",
     room:"", note:p.note || "", changedFrom:null, sub:"연구 일정", repeat:"", added:true,
-    coll:"events", docId:p.id
+    coll:p.remote ? "remote" : "events", docId:p.id
   })),
   ...allLeaves().map(l => ({
     type:"leave", date:l.date, time:null, member:[l.name],
@@ -1471,7 +1471,8 @@ function renderCalendar(){
         : e.kindLabel;
       const cls = e.type === "talk" ? "talk" : e.type === "leave" ? "leave"
         : e.type === "mine" ? "mine" : "due" + (far ? " far" : "");
-      if (e.added && e.docId && store)
+      // 아티팩트면 store, 공개 사이트면 중계 서버. 둘 중 하나라도 있으면 지울 수 있다.
+      if (e.added && e.docId && (store || e.coll === "remote"))
         return `<div class="ev ${cls} own" data-del="${esc(e.coll)}|${esc(e.docId)}"
           title="${esc(e.title)} — 클릭하면 지웁니다" role="button" tabindex="0"
           >${esc(txt)}<span class="x">×</span></div>`;
@@ -2012,10 +2013,62 @@ async function dbAddEvent({title, date, time, member, kind, note}){
 
 function applySnapshots(){ buildAll(); render(); }
 
+/* ── 공개 사이트의 공용 저장소 ─────────────────────────────────
+   GitHub Pages 는 정적이라 글을 쓸 곳이 없다. 등록한 것을 중계 서버에 맡긴다.
+   랩 사람 누구나 등록·취소할 수 있다 — 공용 화이트보드처럼 쓰는 것이 목적이다.
+   서버가 없으면(주소 미설정) 아무 일도 안 하고 보기 전용으로 남는다. */
+const siteStore = {
+  base(){ return (typeof window !== "undefined" && window.__STORE_ENDPOINT) || ""; },
+  on(){ return !!this.base(); },
+  async load(){
+    if (!this.on()) return [];
+    const r = await fetch(this.base() + "/events", {headers:{"Accept":"application/json"}});
+    if (!r.ok) throw new Error("목록 " + r.status);
+    const j = await r.json();
+    return (j.events || []).map(e => ({...e, member: e.member || []}));
+  },
+  async add(rec){
+    const r = await fetch(this.base() + "/events", {
+      method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(rec)});
+    const j = await r.json().catch(() => null);
+    if (!r.ok || !j || j.error) throw new Error((j && j.error) || ("등록 실패 " + r.status));
+    return j;
+  },
+  async remove(id){
+    const r = await fetch(this.base() + "/events/" + encodeURIComponent(id), {method:"DELETE"});
+    const j = await r.json().catch(() => null);
+    if (!r.ok || !j || j.error) throw new Error((j && j.error) || ("취소 실패 " + r.status));
+    return j;
+  },
+};
+
+/* 서버에 있는 등록 일정을 화면에 싣는다. addedEvents 를 그대로 쓰므로
+   캘린더·목록·물어보기·중복 방어가 전부 이미 동작한다. */
+async function siteRefresh(){
+  if (!siteStore.on()) return;
+  try {
+    const rows = await siteStore.load();
+    addedEvents = rows.map(e => ({
+      id:e.id, title:e.title, date:e.date, time:e.time || "", end:"",
+      member:e.member || [], kind:"etc",
+      note:(e.note || "") + (e.by ? (e.note ? " · " : "") + "등록: " + e.by : ""),
+      remote:true,
+    }));
+    buildAll(); render();
+  } catch (e) {
+    console.warn("등록 일정을 불러오지 못했습니다:", e.message);
+  }
+}
+
 /* 이 화면에서 등록한 항목은 캘린더·목록에서 바로 지운다 — 챗봇을 거치지 않는다 */
 async function deleteDoc(coll, id, label){
-  if (!store) return;
   if (!confirm(`${label}\n\n지울까요?`)) return;
+  if (coll === "remote"){
+    try { await siteStore.remove(id); await siteRefresh(); }
+    catch (e) { alert("지우지 못했습니다: " + e.message); }
+    return;
+  }
+  if (!store) return;
   try {
     await store.collection(coll).doc(id).delete();
   } catch (e) {
@@ -2593,8 +2646,12 @@ function scheduleMidnight(){
   const untilMidnight = 86400000 - (shifted % 86400000);
   setTimeout(() => { rollDate(); scheduleMidnight(); }, untilMidnight + 1000);
 }
-document.addEventListener("visibilitychange", () => { if (!document.hidden) rollDate(); });
-window.addEventListener("focus", rollDate);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) return;
+  rollDate();
+  siteRefresh();     // 다른 사람이 등록한 것을 화면 돌아올 때 받아온다
+});
+window.addEventListener("focus", () => { rollDate(); siteRefresh(); });
 
 document.getElementById("labname").textContent = DATA.lab + " 연구·학회 일정";
 document.getElementById("stamp").textContent = "갱신 " + DATA.generated.replace("T", " ").slice(0, 16);
@@ -2604,6 +2661,7 @@ buildAll();
 render();
 scheduleMidnight();
 initDb().then(initChat);
+siteRefresh();      // 공개 사이트에서 등록된 일정 (주소가 없으면 아무 일도 안 한다)
 </script>
 
 
@@ -2621,13 +2679,36 @@ initDb().then(initChat);
 .subrow .gg{background:#eef1f6;color:#3c4655}
 .steps{margin:0;padding-left:18px;color:#4b525e;font-size:13px}
 .steps li{margin:3px 0}
+.addgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;align-items:center}
+.addgrid input{font:inherit;font-size:13px;padding:8px 10px;border:1px solid #d9dee6;
+  border-radius:9px;background:#fff;color:#171a21;min-width:0}
+.addgrid input:focus{outline:2px solid #1d4ed8;outline-offset:-1px}
+.addgrid button{font:inherit;font-size:13px;font-weight:600;padding:9px 16px;border:0;
+  border-radius:9px;background:#1d4ed8;color:#fff;cursor:pointer}
+.addgrid button:disabled{opacity:.5;cursor:default}
+#addMsg.bad{color:#b42318} #addMsg.good{color:#067647}
 @media (prefers-color-scheme:dark){
  .addon section{background:#171a1f;border-color:#2a2f38}
  .addon p,.steps{color:#9aa2ae} .addon .hint{color:#7b828e}
  .subrow{border-color:#2a2f38} .subrow .gg{background:#242932;color:#c9d0da}
+ .addgrid input{background:#0f1216;border-color:#2a2f38;color:#e6e9ef}
 }
 </style>
 <div class="addon">
+  <section id="addBox" hidden>
+    <h2>일정 추가</h2>
+    <p>랩 사람 누구나 등록할 수 있습니다. 잘못 넣었으면 캘린더에서 그 항목을 눌러 지우면 됩니다.</p>
+    <form id="addForm" class="addgrid" autocomplete="off">
+      <input id="aTitle" placeholder="무슨 일정 (예: 회식)" maxlength="60" required>
+      <input id="aDate" placeholder="날짜 (예: 9/25)" maxlength="20" required>
+      <input id="aTime" placeholder="시각 (예: 오후 6시, 비우면 종일)" maxlength="20">
+      <input id="aWho" placeholder="누구 (비우면 랩 전체)" maxlength="60">
+      <input id="aBy" placeholder="등록자 (본인 이름)" maxlength="20">
+      <input id="aNote" placeholder="비고 (선택)" maxlength="200">
+      <button type="submit" id="aGo">등록</button>
+    </form>
+    <p class="hint" id="addMsg"></p>
+  </section>
   <section>
     <h2>내 일정 폰에 넣기</h2>
     <p>이름을 누르면 폰 캘린더에 <b>구독</b>으로 들어갑니다. 한 번만 해두면 일정이 바뀔 때마다 자동으로 따라옵니다 — 다시 받을 필요가 없습니다.</p>
@@ -2647,6 +2728,36 @@ initDb().then(initChat);
 </div>
 <script>
 (function(){
+  /* 일정 추가 — 중계 서버가 붙어 있을 때만 보인다 */
+  var box = document.getElementById("addBox");
+  if (!box || typeof siteStore === "undefined" || !siteStore.on()) { if (box) box.hidden = true; }
+  else {
+    box.hidden = false;
+    var msg = document.getElementById("addMsg");
+    var btn = document.getElementById("aGo");
+    var say = function(t, cls){ msg.textContent = t; msg.className = "hint " + (cls || ""); };
+    document.getElementById("addForm").onsubmit = function(ev){
+      ev.preventDefault();
+      var g = function(id){ return document.getElementById(id).value.trim(); };
+      var d, t;
+      /* 날짜·시각 해석은 대시보드와 같은 함수를 쓴다. 여기서 따로 파싱하면 두 곳이 어긋난다. */
+      try { d = checkDate(g("aDate")); } catch (e) { return say(e.message, "bad"); }
+      try { t = g("aTime") ? checkTime(g("aTime")) : ""; } catch (e) { return say(e.message, "bad"); }
+      var who = g("aWho").split(/[,·\s]+/).filter(Boolean);
+      btn.disabled = true; say("등록 중…");
+      siteStore.add({ title:g("aTitle"), date:d, time:t, member:who, note:g("aNote"), by:g("aBy") })
+        .then(function(){
+          say(g("aTitle") + " " + fmtDate(d) + (t ? " " + t : "") + " 등록했습니다.", "good");
+          ["aTitle","aDate","aTime","aWho","aNote"].forEach(function(id){
+            document.getElementById(id).value = "";   // 등록자 이름은 남겨둔다
+          });
+          return siteRefresh();
+        })
+        .catch(function(e){ say(e.message, "bad"); })
+        .then(function(){ btn.disabled = false; });
+    };
+  }
+
   /* 주소를 코드에 박지 않는다. 저장소 이름이 바뀌거나 다른 곳에 올려도 그대로 동작해야 한다. */
   var base = location.href.split(/[?#]/)[0].replace(/[^\/]*$/, "");
   var web  = base.replace(/^https?:/, "webcal:");

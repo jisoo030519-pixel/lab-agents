@@ -1,4 +1,4 @@
-name = "lab-schedule-ai"
+name = "lab-schedule"
 main = "worker.js"
 compatibility_date = "2026-01-01"
 
@@ -10,15 +10,23 @@ DATA_URL = "https://jisoo030519-pixel.github.io/lab-agents/data.json"
 # 로컬에서 시험하려면 http://localhost:8765 를 임시로 넣으면 된다.
 ALLOWED_ORIGINS = "https://jisoo030519-pixel.github.io"
 
-# 요금이 새지 않게 하는 상한. 랩 인원 11명이면 넉넉하다.
+# 등록 한도 — 돈은 안 들지만 막지 않으면 스팸으로 캘린더가 뒤덮인다
+WRITE_PER_IP_HOUR = "20"
+
+# AI 한도 (ANTHROPIC_API_KEY 를 넣었을 때만 의미 있다)
 PER_IP_HOUR = "30"
 DAILY_TOTAL = "500"
-
-# 모델. 더 싸게 쓰려면 claude-haiku-4-5-20251001
 MODEL = "claude-sonnet-5"
 
-# 사용량 세는 곳. 아래 id 는 `wrangler kv namespace create RATE` 가 알려준 값으로 바꾼다.
-# 이게 없으면 Worker 는 동작하지만 횟수 제한이 걸리지 않는다 (권장하지 않음).
+# ── 저장소 두 개 ──────────────────────────────────────────────
+# 아래 id 는 `wrangler kv namespace create ...` 가 알려준 값으로 바꾼다.
+
+# 등록된 일정이 여기 쌓인다. 등록 기능에 반드시 필요하다.
+[[kv_namespaces]]
+binding = "EVENTS"
+id = "여기에_EVENTS_ID_붙여넣기"
+
+# 사용 횟수를 센다. 없으면 동작은 하지만 한도가 안 걸린다 (권장하지 않음).
 [[kv_namespaces]]
 binding = "RATE"
-id = "여기에_KV_ID_붙여넣기"
+id = "여기에_RATE_ID_붙여넣기"
