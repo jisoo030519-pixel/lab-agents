@@ -274,7 +274,7 @@ footer code{font-family:"IBM Plex Mono",monospace; background:var(--surface-2); 
 <script>
 const DATA = /*DATA*/{
   "lab": "인천대 연구실",
-  "generated": "2026-09-09T13:54:52",
+  "generated": "2026-09-09T13:58:13",
   "today": "2026-09-09",
   "members": [
     "김종우",
@@ -2253,8 +2253,22 @@ const plusDays = (iso, n) => {
 
 function localAnswer(q){
   const s = q.trim();
-  const list = (rows, head, empty) =>
-    rows.length ? head + "\n" + rows.map(fmtOne).join("\n") : (empty || head + "\n· 없습니다.");
+
+  /* 이름이 섞여 있으면 그 사람 것만 걸러 답한다.
+     "현지수 이번주 일정" 처럼 이름과 기간을 같이 물어봤을 때
+     기간만 보고 랩 전체를 뿌려주면 물어본 게 아니다.
+     랩 공통 일정(개인미팅·세미나)은 그 사람도 가는 것이니 남긴다. */
+  const who = (DATA.members || []).find(n => s.includes(n));
+  const tag = who ? who + " 님 " : "";
+  const onlyWho = rows => !who ? rows
+    : rows.filter(e => memArr(e).includes(who) || !memArr(e).length);
+  const list = (rows0, head, empty) => {
+    const rows = onlyWho(rows0);
+    if (rows.length) return tag + head + "\n" + rows.map(fmtOne).join("\n");
+    // 조사를 붙이면 "발표은" 같은 게 나온다. 붙이지 않는다.
+    if (who) return `${who} 님 ${head} — 없습니다.`;
+    return empty || head + "\n· 없습니다.";
+  };
 
   // 연차 — 공개본에는 자료 자체를 싣지 않는다
   if (/연차|휴가/.test(s)){
@@ -2379,14 +2393,17 @@ function localAnswer(q){
       talks = talks.filter(e => e.date.startsWith(pre));
       return list(talks, `${+mm[1]}월 발표`, `${+mm[1]}월에 잡힌 발표가 없습니다.`);
     }
+    // 사람을 지정했으면 지난 발표도 보여준다. "이승훈 발표 언제야" 에
+    // "없습니다" 라고 답하면 안 한 것처럼 들린다 — 어제 한 것이 있다.
+    if (who) return list(talks, "발표", `${who} 님 발표 — 기록이 없습니다.`);
     return list(talks.filter(e => dayDiff(e.date) >= 0).slice(0, 8), "예정된 발표");
   }
-  // 사람 이름
-  const who = (DATA.members || []).find(n => s.includes(n));
+  // 이름만 말한 경우 — 기간을 안 정했으니 앞으로의 일정을 보여준다
   if (who){
-    const mine = EVENTS.filter(e => dayDiff(e.date) >= 0
-      && (memArr(e).includes(who) || !memArr(e).length)).slice(0, 8);
-    return list(mine, `${who} 님 앞으로의 일정 (랩 공통 포함)`);
+    const mine = onlyWho(EVENTS.filter(e => dayDiff(e.date) >= 0)).slice(0, 8);
+    return mine.length
+      ? `${who} 님 앞으로의 일정 (랩 공통 포함)\n` + mine.map(fmtOne).join("\n")
+      : `${who} 님은 앞으로 잡힌 일정이 없습니다.`;
   }
   const mm = s.match(/(\d{1,2})\s*월/);
   if (mm){
