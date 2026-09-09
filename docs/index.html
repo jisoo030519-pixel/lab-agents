@@ -291,7 +291,7 @@ footer code{font-family:"IBM Plex Mono",monospace; background:var(--surface-2); 
 <script>
 const DATA = /*DATA*/{
  "lab": "인천대 연구실",
- "generated": "2026-09-09T11:20:19",
+ "generated": "2026-09-09T11:59:54",
  "today": "2026-09-09",
  "members": [
   "김종우",
@@ -2330,7 +2330,9 @@ async function ask(text){
 
   ctl = new AbortController();
   try {
-    const opts = { cache:false, modelTier:"quick", signal:ctl.signal,
+    // 등록·변경은 날짜를 짚고 도구를 골라야 해서 틀리면 캘린더가 망가진다 → 제일 좋은 모델.
+    // 단순 조회는 default 로 충분하다. quick 은 요일·날짜를 자주 틀려서 쓰지 않는다.
+    const opts = { cache:false, modelTier: canWrite ? "complex" : "default", signal:ctl.signal,
       onText: ({text}) => { out.textContent = text; logEl().scrollTop = logEl().scrollHeight; } };
     if (canWrite) opts.tools = activeTools;    // 등록까지 하려면 저장소가 있어야 한다
     toolRan = 0;
