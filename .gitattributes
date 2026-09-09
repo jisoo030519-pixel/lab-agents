@@ -1,0 +1,8 @@
+# .ics 는 규격상 반드시 CRLF 다 (RFC 5545).
+# core.autocrlf=true 가 커밋할 때 LF 로 바꿔버려서, GitHub Pages 가
+# 규격에 안 맞는 캘린더를 내려주고 있었다. 손대지 못하게 막는다.
+*.ics -text
+
+# 아이콘·PDF 도 마찬가지로 손대지 않는다
+*.png binary
+*.pdf binary
