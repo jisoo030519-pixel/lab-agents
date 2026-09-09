@@ -291,7 +291,7 @@ footer code{font-family:"IBM Plex Mono",monospace; background:var(--surface-2); 
 <script>
 const DATA = /*DATA*/{
  "lab": "인천대 연구실",
- "generated": "2026-09-09T13:58:13",
+ "generated": "2026-09-09T14:02:32",
  "today": "2026-09-09",
  "members": [
   "김종우",
@@ -1486,7 +1486,8 @@ function renderCalendar(){
 
 /* ---------- 다가오는 일정 ---------- */
 function renderList(){
-  const rows = visible().filter(e => !routine(e) && dayDiff(e.date) >= -1).slice(0, 40);
+  // 지난 일정은 넣지 않는다 (어제 것까지 남겨두면 "다가오는 일정" 이 아니다)
+  const rows = visible().filter(e => !routine(e) && dayDiff(e.date) >= 0).slice(0, 40);
   const box = document.getElementById("list");
   if (!rows.length && !UNDATED.length){
     box.innerHTML = `<div class="empty">예정된 일정이 없습니다.</div>`;
@@ -2217,9 +2218,17 @@ function localAnswer(q){
   const tag = who ? who + " 님 " : "";
   const onlyWho = rows => !who ? rows
     : rows.filter(e => memArr(e).includes(who) || !memArr(e).length);
+  /* 지난 일정은 목록에 안 넣는다. 앞으로 뭘 해야 하는지 보러 오는 화면이다.
+     다만 "다 지났다" 와 "아예 없다" 는 다르다. 지난 것뿐이면 마지막 날짜만
+     한 줄로 알려준다 — "없습니다" 만 하면 안 한 것처럼 들린다. */
   const list = (rows0, head, empty) => {
     const rows = onlyWho(rows0);
-    if (rows.length) return tag + head + "\n" + rows.map(fmtOne).join("\n");
+    const up = rows.filter(e => dayDiff(e.date) >= 0);
+    if (up.length) return tag + head + "\n" + up.map(fmtOne).join("\n");
+    if (rows.length){
+      const last = rows[rows.length - 1];
+      return `${tag}${head} — 앞으로 잡힌 것이 없습니다. (마지막 ${fmtDate(last.date)})`;
+    }
     // 조사를 붙이면 "발표은" 같은 게 나온다. 붙이지 않는다.
     if (who) return `${who} 님 ${head} — 없습니다.`;
     return empty || head + "\n· 없습니다.";
@@ -2337,7 +2346,8 @@ function localAnswer(q){
   }
 
   if (/마감|급한|deadline/i.test(s)){
-    const due = EVENTS.filter(e => e.type === "due" && dayDiff(e.date) >= 0).slice(0, 5);
+    // 지난 마감 걸러내기는 list() 가 한다
+    const due = EVENTS.filter(e => e.type === "due").slice(0, 12);
     return list(due, "다가오는 마감", "다가오는 마감이 없습니다.");
   }
   if (/발표|포스터|구두|좌장/.test(s)){
@@ -2348,10 +2358,10 @@ function localAnswer(q){
       talks = talks.filter(e => e.date.startsWith(pre));
       return list(talks, `${+mm[1]}월 발표`, `${+mm[1]}월에 잡힌 발표가 없습니다.`);
     }
-    // 사람을 지정했으면 지난 발표도 보여준다. "이승훈 발표 언제야" 에
-    // "없습니다" 라고 답하면 안 한 것처럼 들린다 — 어제 한 것이 있다.
+    // 지난 것 걸러내기는 list() 가 한다. 여기서 또 걸러내면 "다 지났다" 와
+    // "아예 없다" 를 구분해서 알려주지 못한다.
     if (who) return list(talks, "발표", `${who} 님 발표 — 기록이 없습니다.`);
-    return list(talks.filter(e => dayDiff(e.date) >= 0).slice(0, 8), "예정된 발표");
+    return list(talks.slice(0, 12), "예정된 발표");
   }
   // 이름만 말한 경우 — 기간을 안 정했으니 앞으로의 일정을 보여준다
   if (who){
