@@ -255,5 +255,7 @@
       "start": "2026-10-07T09:30",
       "title": "공정 인지형 Molecular GNN을 이용한 추출증류 엔트레이너 순위 예측"
     }
-  }
+  },
+  "site_url": "https://jisoo030519-pixel.github.io/lab-agents/",
+  "store_endpoint": "https://lab-schedule.epad-lab.workers.dev"
 }
