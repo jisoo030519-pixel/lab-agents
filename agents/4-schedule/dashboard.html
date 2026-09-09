@@ -274,7 +274,7 @@ footer code{font-family:"IBM Plex Mono",monospace; background:var(--surface-2); 
 <script>
 const DATA = /*DATA*/{
   "lab": "인천대 연구실",
-  "generated": "2026-09-09T13:39:58",
+  "generated": "2026-09-09T13:54:52",
   "today": "2026-09-09",
   "members": [
     "김종우",
@@ -1398,7 +1398,7 @@ EVENTS = [
     type:"mine", date:p.due.slice(0,10), time:(p.due.length>10 ? p.due.slice(11,16) : null),
     member:p.member || [], title:p.title, kindLabel:MINE_LABEL[p.kind] || p.kind,
     room:"", note:p.note, changedFrom:null, sub:"연구 일정", repeat:p.repeat || "",
-    movedFrom:p.movedFrom || null
+    movedFrom:p.movedFrom || null, order:p.order || null
   })),
   ...addedShown.map(p => ({
     type:"mine", date:p.date, time:p.time || null, endTime:p.end || null,
@@ -2221,6 +2221,11 @@ function showHints(){
    대신 화면에 이미 들어 있는 자료로 답한다 — 자주 묻는 것은 다 여기서 나온다. */
 // member 는 발표는 문자열 한 명, 정기 일정은 배열이다. 한쪽으로 맞춘다.
 const memArr = e => Array.isArray(e.member) ? e.member : (e.member ? [e.member] : []);
+/* note 에는 담당자용 메모가 섞여 있다 ("정해지면 due 를 ... 형태로 고치세요").
+   랩 사람이 물어봤을 때 그걸 읽어주면 무슨 소린지 모른다. 그 문장만 걷어낸다. */
+const cleanNote = s => !s ? "" : String(s).split(/[.·]\s+|—\s*/)
+  .filter(p => !/고치세요|고쳐주세요|\.yaml|형태로|대략값/.test(p))
+  .join(". ").replace(/\s*\(반복\)\s*$/, "").replace(/\s{2,}/g, " ").trim();
 const fmtOne = e => {
   const n = dayDiff(e.date);
   const when = n === 0 ? "오늘" : n === 1 ? "내일" : n > 0 ? "D-" + n : "지남";
@@ -2261,18 +2266,78 @@ function localAnswer(q){
     return "연차 현황\n" + ppl.map(p => `· ${p.name} ${p.left}/${p.total}일`).join("\n");
   }
 
+  // 날짜를 콕 집어 물어보는 경우: 9/18, 9월 18일, 18일
+  const md = s.match(/(\d{1,2})\s*[\/월.\-]\s*(\d{1,2})\s*일?/);
+  // \b 를 쓰면 안 된다 — JS 에서 한글은 낱말 문자가 아니라서 "18일에" 의 경계를 못 잡는다
+  const dOnly = !md && s.match(/(\d{1,2})\s*일(?!\d)/);
+  if (md || dOnly){
+    const y = +TODAY_ISO.slice(0, 4);
+    const mo = md ? +md[1] : +TODAY_ISO.slice(5, 7);
+    const dy = md ? +md[2] : +dOnly[1];
+    if (mo >= 1 && mo <= 12 && dy >= 1 && dy <= 31){
+      const iso = `${y}-${String(mo).padStart(2,"0")}-${String(dy).padStart(2,"0")}`;
+      return list(inRange(iso, iso), `${fmtDate(iso)} 일정`);
+    }
+  }
+
   if (/오늘/.test(s))   return list(inRange(TODAY_ISO, TODAY_ISO), `오늘(${fmtDate(TODAY_ISO)}) 일정`);
   if (/내일/.test(s)){
     const t = plusDays(TODAY_ISO, 1);
     return list(inRange(t, t), `내일(${fmtDate(t)}) 일정`);
   }
+  if (/모레/.test(s)){
+    const t = plusDays(TODAY_ISO, 2);
+    return list(inRange(t, t), `모레(${fmtDate(t)}) 일정`);
+  }
   if (/이번\s*주/.test(s)){
     const m = mondayOf(TODAY_ISO);
     return list(inRange(m, plusDays(m, 6)), "이번 주 일정");
   }
-  if (/다음\s*주/.test(s)){
+  if (/다음\s*주|다음주/.test(s)){
     const m = plusDays(mondayOf(TODAY_ISO), 7);
     return list(inRange(m, plusDays(m, 6)), "다음 주 일정");
+  }
+  if (/이번\s*달/.test(s)){
+    const pre = TODAY_ISO.slice(0, 7);
+    return list(EVENTS.filter(e => e.date.startsWith(pre)), `${+pre.slice(5)}월 일정`);
+  }
+  if (/다음\s*달/.test(s)){
+    const d = new Date(TODAY_ISO + "T00:00:00Z");
+    d.setUTCMonth(d.getUTCMonth() + 1);
+    const pre = d.toISOString().slice(0, 7);
+    return list(EVENTS.filter(e => e.date.startsWith(pre)), `${+pre.slice(5)}월 일정`);
+  }
+
+  // 요일로 물어보는 경우 — 다음에 오는 그 요일
+  const wd = s.match(/([일월화수목금토])\s*요일/);
+  if (wd){
+    const want = "일월화수목금토".indexOf(wd[1]);
+    let iso = TODAY_ISO;
+    for (let k = 0; k < 7; k++){
+      if (new Date(iso + "T00:00:00Z").getUTCDay() === want) break;
+      iso = plusDays(iso, 1);
+    }
+    return list(inRange(iso, iso), `다음 ${wd[1]}요일(${fmtDate(iso)}) 일정`);
+  }
+
+  // 정기 일정 이름으로 — 개인미팅 순서를 여기서 답한다 (note 에 들어 있다)
+  const routines = [...new Set(EVENTS.filter(e => e.repeat).map(e => e.title))];
+  const rt = routines.find(t => s.includes(t))
+          || (/세미나/.test(s) ? routines.find(t => t.includes("세미나")) : null)
+          || (/스터디/.test(s) ? routines.find(t => t.includes("스터디")) : null)
+          || (/미팅|순서|사다리/.test(s) ? routines.find(t => t.includes("미팅")) : null);
+  if (rt){
+    const next = EVENTS.filter(e => e.title === rt && dayDiff(e.date) >= 0).slice(0, 3);
+    if (!next.length) return `${rt} 은 앞으로 잡힌 회차가 없습니다.`;
+    const out = [`${rt} — 다음 회차`];
+    next.forEach((e, k) => {
+      out.push(fmtOne(e));
+      if (k > 0) return;                       // 순서·비고는 첫 회차만
+      if (e.order && e.order.length) out.push("  순서: " + e.order.join(" → "));
+      const nt = cleanNote(e.note);
+      if (nt) out.push("  " + nt);
+    });
+    return out.join("\n");
   }
   // 학회 이름으로 물어보는 경우 — "iccas 일정 언제 나옴?" 같은 것
   const socs = [...new Set([...(DATA.deadlines||[]).map(d => d.society),
@@ -2345,7 +2410,11 @@ function localAnswer(q){
     if (hits.length) return list(hits, `"${words.join(" ")}" 로 찾은 일정`);
   }
   return "이 페이지는 자료 안에서만 찾아 답합니다. 이렇게 물어보세요:\n"
-       + "· 오늘 / 내일 / 이번 주 / 다음 주\n· 가장 급한 마감\n· 10월 발표\n· 이승훈 (이름)\n\n"
+       + "· 오늘 / 내일 / 모레 / 이번 주 / 다음 주 / 이번 달\n"
+       + "· 9/18  또는  화요일\n"
+       + "· 개인미팅 순서 · 랩세미나 · 학부스터디\n"
+       + "· 가장 급한 마감 · ICCAS · 10월 발표\n"
+       + "· 이승훈 (이름)\n\n"
        + "새로 등록하거나 일정을 바꾸려면 담당자에게 말해주세요.";
 }
 
