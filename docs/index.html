@@ -291,7 +291,7 @@ footer code{font-family:"IBM Plex Mono",monospace; background:var(--surface-2); 
 <script>
 const DATA = /*DATA*/{
  "lab": "인천대 연구실",
- "generated": "2026-09-09T14:02:32",
+ "generated": "2026-09-09T14:20:07",
  "today": "2026-09-09",
  "members": [
   "김종우",
@@ -1571,19 +1571,25 @@ function factSheet(){
   const dd = iso => { const n = dayDiff(iso); return n === 0 ? "오늘" : (n > 0 ? `D-${n}` : `${-n}일 지남`); };
   const D = iso => `${iso} ${fmtDate(iso)}`;
 
-  L.push("[학회 마감·행사]");
-  (DATA.deadlines || []).forEach(d => L.push(
+  /* 이미 지난 마감·발표는 자료에 넣지 않는다.
+     넣어두면 "그건 지났습니다" 라고 굳이 짚어서 답이 길어지고,
+     "9/8 이 마지막이라 남은 게 없습니다" 처럼 끝난 얘기를 꺼낸다.
+     물어본 것은 앞으로 뭘 해야 하느냐다. */
+  const upcoming = iso => !iso || dayDiff(iso) >= 0;
+
+  L.push("[학회 마감·행사] (앞으로 남은 것만)");
+  (DATA.deadlines || []).filter(d => upcoming(d.due)).forEach(d => L.push(
     `- ${d.due ? D(d.due) : "날짜미정"} (${d.due ? dd(d.due) : "미정"}) ${d.society} ${d.event} — ${DUE_LABEL[d.kind] || d.kind}${d.note ? ` (${d.note})` : ""}`));
 
-  L.push("", "[우리 랩 발표] (제1저자 기준)");
-  (DATA.sessions || []).forEach(s => L.push(
+  L.push("", "[우리 랩 발표] (제1저자 기준 · 앞으로 남은 것만)");
+  (DATA.sessions || []).filter(s => upcoming(s.start)).forEach(s => L.push(
     `- ${s.start || "일시미정"} ${s.member} ${TALK_LABEL[s.kind] || s.kind} — ${s.title} @${s.room || "장소미정"} (${s.society} ${s.event})${s.note ? ` [${s.note}]` : ""}`));
 
   L.push("", "[학기 정기 일정]");
   WEEKLY.forEach(w => L.push(
     `- 매주 ${WD[w.wd]}요일${w.time ? " " + w.time : ""} ${w.title} — ${w.who || "랩 전체"}`));
 
-  const once = (DATA.personal || []).filter(p => p.repeat !== "weekly");
+  const once = (DATA.personal || []).filter(p => p.repeat !== "weekly" && upcoming(p.due));
   if (once.length){
     L.push("", "[그 외 연구 일정]");
     once.forEach(p => L.push(`- ${p.due} ${p.title}${p.note ? ` (${p.note})` : ""}`));
@@ -1614,6 +1620,9 @@ const RULES = `당신은 위 연구실의 일정 비서입니다. 묻는 말에 
 - 날짜는 M/D(요일) 형식으로, 남은 날은 D-n으로 알려주세요.
 - 짧게 답하세요. 표가 필요 없으면 쓰지 마세요.
 - 발표 일정은 제1저자만 기록돼 있습니다. 공저자 정보는 자료에 없습니다.
+- **이미 지난 마감·발표는 꺼내지 마세요.** 자료에는 앞으로 남은 것만 실려 있습니다.
+  "9/8이 마지막이라 남은 게 없습니다" 처럼 끝난 일을 짚지 마세요. 남은 것만 말하면 됩니다.
+  없으면 그냥 "남은 일정이 없습니다" 라고만 하세요.
 
 ## 다음 주 공지가 오면 — 가장 중요한 작업입니다
 
@@ -1652,6 +1661,10 @@ const RULES = `당신은 위 연구실의 일정 비서입니다. 묻는 말에 
 - 이름은 한글 그대로 넘기세요. 영문으로 바꾸지 마세요.
 - 누구 것인지 안 밝히면 되묻고, 함부로 정하지 마세요.
 - 등록에 성공하면 무엇이 언제로 등록됐는지, 남은 연차가 몇 일이 됐는지 한 줄로 알려주세요.
+- 결과에 warning 이 있으면 그 내용도 함께 전하세요 (지난 날짜로 등록된 경우 등).
+- 무엇이든 "넣어줘 / 잡아줘 / 등록해줘 / 추가해줘" 라고 하면 add_event 로 바로 넣으세요.
+  회식·출장·미팅·마감·제출·발표 준비 — 종류를 가리지 않습니다. 자료에 없는 종류라고
+  거절하지 마세요. kind 를 모르겠으면 etc 로 넣으면 됩니다.
 
 - **도구를 부르기 전에 "등록됐습니다" / "취소됐습니다"라고 말하지 마세요.** 도구 결과를 받은 뒤에만
   완료를 알리세요. 결과 없이 완료를 주장하면 화면에 경고가 붙습니다.
@@ -1988,7 +2001,13 @@ async function dbAddEvent({title, date, time, member, kind, note}){
   const rec = {title:t, date:d, time:tm, end:"", member:who, kind:String(kind || "etc"),
                note:String(note || ""), at:new Date().toISOString()};
   const ref = await store.collection("events").add(rec);
-  return {ok:true, id:ref.id, ...rec, dateLabel: fmtDate(d)};
+  const out = {ok:true, id:ref.id, ...rec, dateLabel: fmtDate(d)};
+  // 지난 날짜로 넣으면 목록·캘린더에서 안 보인다. 등록은 됐는데 사라진 것처럼
+  // 보이면 도구를 못 믿게 되므로 그 사실을 답에 실어 보낸다.
+  if (dayDiff(d) < 0)
+    out.warning = `${fmtDate(d)} 은 이미 지난 날짜입니다. 등록은 됐지만 `
+      + `"다가오는 일정" 목록에는 안 보입니다. 날짜가 맞는지 사용자에게 확인하세요.`;
+  return out;
 }
 
 function applySnapshots(){ buildAll(); render(); }
@@ -2218,20 +2237,14 @@ function localAnswer(q){
   const tag = who ? who + " 님 " : "";
   const onlyWho = rows => !who ? rows
     : rows.filter(e => memArr(e).includes(who) || !memArr(e).length);
-  /* 지난 일정은 목록에 안 넣는다. 앞으로 뭘 해야 하는지 보러 오는 화면이다.
-     다만 "다 지났다" 와 "아예 없다" 는 다르다. 지난 것뿐이면 마지막 날짜만
-     한 줄로 알려준다 — "없습니다" 만 하면 안 한 것처럼 들린다. */
+  /* 지난 일정은 아예 말하지 않는다. 앞으로 뭘 해야 하는지 보러 오는 화면이다.
+     끝난 일을 짚어주면("9/8이 마지막이었습니다") 답만 길어지고 할 일이 안 보인다. */
   const list = (rows0, head, empty) => {
-    const rows = onlyWho(rows0);
-    const up = rows.filter(e => dayDiff(e.date) >= 0);
-    if (up.length) return tag + head + "\n" + up.map(fmtOne).join("\n");
-    if (rows.length){
-      const last = rows[rows.length - 1];
-      return `${tag}${head} — 앞으로 잡힌 것이 없습니다. (마지막 ${fmtDate(last.date)})`;
-    }
+    const rows = onlyWho(rows0).filter(e => dayDiff(e.date) >= 0);
+    if (rows.length) return tag + head + "\n" + rows.map(fmtOne).join("\n");
     // 조사를 붙이면 "발표은" 같은 게 나온다. 붙이지 않는다.
-    if (who) return `${who} 님 ${head} — 없습니다.`;
-    return empty || head + "\n· 없습니다.";
+    if (who) return `${who} 님 ${head} — 남은 일정이 없습니다.`;
+    return empty || head + " — 남은 일정이 없습니다.";
   };
 
   // 연차 — 공개본에는 자료 자체를 싣지 않는다

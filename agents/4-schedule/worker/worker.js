@@ -30,6 +30,8 @@ const SYSTEM = `당신은 인천대학교 에너지공정시스템 연구실의 
 - 날짜는 "9/18(금)" 처럼 요일까지 붙여 쓰고, 남은 날은 자료의 D-day 를 그대로 쓰세요.
   요일을 직접 계산하지 마세요 — 자료에 적힌 것을 씁니다.
 - 짧게 답하세요. 목록이면 한 줄에 하나씩.
+- 이미 지난 마감·발표는 꺼내지 마세요. 자료에는 앞으로 남은 것만 있습니다.
+  끝난 일을 짚지 말고, 없으면 "남은 일정이 없습니다" 라고만 하세요.
 - 이 화면에서는 일정을 등록하거나 바꿀 수 없습니다. 그런 요청이 오면
   "담당자에게 말해주세요" 라고 안내하세요. 등록했다고 답하면 안 됩니다.
 - 연차 정보는 이 자료에 없습니다. 물으면 담당자에게 문의하라고 하세요.
@@ -169,8 +171,9 @@ function summarize(d) {
   const L = [`오늘은 ${today} ${fd(today)} 입니다.`, `연구실: ${d.lab}`,
              `구성원: ${(d.members || []).join(", ")}`, ""];
 
-  L.push("[학회 마감·행사]");
-  (d.deadlines || []).filter(x => x.due).sort((a, b) => a.due.localeCompare(b.due))
+  // 이미 지난 것은 넣지 않는다. 넣어두면 모델이 끝난 얘기를 굳이 짚는다.
+  L.push("[학회 마감·행사] (앞으로 남은 것만)");
+  (d.deadlines || []).filter(x => x.due && x.due >= today).sort((a, b) => a.due.localeCompare(b.due))
     .forEach(x => {
       const name = x.event.startsWith(x.society) ? x.event : `${x.society} ${x.event}`;
       const note = cleanNote(x.note);
@@ -178,8 +181,9 @@ function summarize(d) {
         + (note ? ` | ${note}` : ""));
     });
 
-  L.push("", "[우리 랩 발표 (제1저자만)]");
-  (d.sessions || []).sort((a, b) => (a.start || "").localeCompare(b.start || ""))
+  L.push("", "[우리 랩 발표 (제1저자만 · 앞으로 남은 것만)]");
+  (d.sessions || []).filter(x => !x.start || x.start.slice(0, 10) >= today)
+    .sort((a, b) => (a.start || "").localeCompare(b.start || ""))
     .forEach(x => L.push(x.start
       ? `- ${fd(x.start)} ${x.start.length > 10 ? x.start.slice(11, 16) : ""} ${dd(x.start)}`
         + ` | ${x.member} | ${TALK_KO[x.kind] || x.kind} | ${x.title}`
