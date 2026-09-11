@@ -17,7 +17,7 @@
 
 const MODEL = "@cf/google/gemma-4-26b-a4b-it";   // wrangler.toml 의 MODEL 이 우선
 const MAX_Q = 400;          // 질문 글자 수 상한
-const MAX_TOKENS = 1200;    // 답 길이 상한 (추론 모델은 생각에도 토큰을 쓴다)
+const MAX_TOKENS = 2000;    // 답 길이 상한. 추론 모델은 생각에도 토큰을 쓴다 (실측 700~950). 쓴 만큼만 든다
 const PER_IP_HOUR = 30;     // IP당 시간당 질문 수
 const WRITE_PER_IP_HOUR = 20;  // IP당 시간당 등록 수
 const DAILY_TOTAL = 500;    // AI 전체 일일 상한 (요금 폭주 차단)
@@ -268,14 +268,14 @@ async function askAi(req, env, ctx, json) {
   let changed = false;
   const actions = [];   // 페이지가 저장소 지연 반영을 메우는 데 쓴다 (방금 넣은 것을 바로 그리기)
   for (let round = 0; round < MAX_ROUNDS; round++) {
+    const model = env.MODEL || MODEL;
+    // Gemma 는 애매한 말에 속으로 오래 고민하다 토큰을 다 써서 빈 답을 낸다
+    // (실측: "새로고침해줘" 에 생각만 1200토큰, 82뉴런, 답 없음). 생각 강도를 낮춘다.
+    // low 로 낮춰도 "이번 주에 뭐 있어?" 에 700~950토큰을 생각에 쓴다 → 아래에서 한 번 더 받는다.
+    const extra = /gemma/i.test(model) ? { reasoning_effort: "low" } : {};
     let r;
     try {
-      const model = env.MODEL || MODEL;
-      const opts = { messages, tools, max_tokens: MAX_TOKENS };
-      // Gemma 는 애매한 말에 속으로 오래 고민하다 토큰을 다 써서 빈 답을 낸다
-      // (실측: "새로고침해줘" 에 생각만 1200토큰, 82뉴런, 답 없음). 생각 강도를 낮춘다.
-      if (/gemma/i.test(model)) opts.reasoning_effort = "low";
-      r = await env.AI.run(model, opts);
+      r = await env.AI.run(model, { messages, tools, max_tokens: MAX_TOKENS, ...extra });
     } catch (e) {
       const m = String((e && e.message) || e);
       // 무료 한도를 다 쓰면 그날은 에러가 난다. 이유를 숨기지 않아야 사람이 이해한다.
@@ -285,7 +285,19 @@ async function askAi(req, env, ctx, json) {
       return json({ error: msg, changed, actions }, 502);
     }
 
-    const { text, calls, raw } = readAi(r);
+    let { text, calls, raw } = readAi(r);
+
+    // 생각만 하다 답을 못 쓴 경우(finish_reason:"length", content:"") 한 번만 다시 묻는다.
+    // 도구는 빼고 답만 쓰라고 못박는다. 세 번은 안 부른다 — 부를 때마다 뉴런이 든다.
+    if (!calls.length && !text) {
+      try {
+        const r2 = await env.AI.run(model, { max_tokens: MAX_TOKENS, ...extra,
+          messages: [...messages, { role: "user",
+            content: "생각은 짧게 하고, 바로 앞 질문에 대한 답만 한두 줄로 쓰세요." }] });
+        text = readAi(r2).text;
+        r = r2;
+      } catch { /* 다시 물어도 안 되면 아래에서 안내 문구로 끝낸다 */ }
+    }
 
     if (!calls.length) {
       return json({ text: text || EMPTY_REPLY, changed, actions,
