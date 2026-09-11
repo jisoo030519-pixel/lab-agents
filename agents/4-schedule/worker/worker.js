@@ -23,6 +23,8 @@ const WRITE_PER_IP_HOUR = 20;  // IP당 시간당 등록 수
 const DAILY_TOTAL = 500;    // AI 전체 일일 상한 (요금 폭주 차단)
 const MAX_EVENTS = 400;     // 저장할 일정 개수 상한 (스팸으로 채워지는 것 방지)
 const DATA_TTL = 600;       // 일정 자료 캐시 (초)
+const MAX_ROUNDS = 4;       // 도구 호출 왕복 상한 (무한 반복·요금 폭주 방지)
+const DATE_DAYS = 70;       // 날짜표에 넣을 날 수 (오늘부터)
 
 const SYSTEM = `당신은 인천대학교 에너지공정시스템 연구실의 일정 안내 담당입니다.
 아래 <일정자료> 안에 있는 내용만으로 답하세요.
@@ -35,10 +37,51 @@ const SYSTEM = `당신은 인천대학교 에너지공정시스템 연구실의 
 - 짧게 답하세요. 목록이면 한 줄에 하나씩.
 - 이미 지난 마감·발표는 꺼내지 마세요. 자료에는 앞으로 남은 것만 있습니다.
   끝난 일을 짚지 말고, 없으면 "남은 일정이 없습니다" 라고만 하세요.
-- 이 화면에서 등록은 화면 아래 "일정 추가" 칸으로 합니다. 당신이 등록하지는 못합니다.
-  등록해 달라는 요청에는 그 칸을 쓰라고 안내하세요. 등록했다고 답하면 안 됩니다.
 - 연차 정보는 이 자료에 없습니다. 물으면 담당자에게 문의하라고 하세요.
-- 일정과 무관한 질문(번역, 코드, 잡담 등)은 정중히 거절하세요.`;
+- 일정과 무관한 질문(번역, 코드, 잡담 등)은 정중히 거절하세요.
+
+등록·취소 (도구를 씁니다)
+- "넣어줘 / 잡아줘 / 등록해줘 / 추가해줘" → add_event 를 부르세요. 종류를 가리지 마세요.
+  회식·출장·미팅·마감·제출 무엇이든 넣습니다. 되묻지 말고 바로 넣으세요.
+- "지워줘 / 취소해줘 / 빼줘" → delete_event 를 부르세요. id 는 <등록된 일정> 에 적혀 있습니다.
+  <학회 마감>·<우리 랩 발표>·<정기 미팅> 은 id 가 없어 지울 수 없습니다.
+  그런 걸 지워달라면 담당자에게 말하라고 안내하세요.
+- **날짜는 <날짜표> 에 적힌 것을 그대로 쓰세요.** "다음 주 화요일" 이 며칠인지 직접 세지 마세요.
+  날짜표에 없는 날이면 사용자에게 되물으세요.
+- 시각은 24시간 HH:MM 으로 넘기세요. "오후 6시" 는 18:00 입니다. 없으면 비워 두세요.
+- 참석자는 구성원 명단에 있는 이름만 넘기세요. 안 밝히면 비워 두세요 (랩 전체).
+- **도구를 부르기 전에 "등록했습니다" 라고 말하지 마세요.** 도구 결과를 받은 뒤에만 알리세요.
+- 도구가 오류를 돌려주면 그 문구를 그대로 전하세요. 원인을 지어내지 마세요.
+- 등록·취소한 뒤에는 무엇이 언제로 처리됐는지 한 줄로 알려주세요.`;
+
+const TOOLS = [
+  {
+    name: "add_event",
+    description: "연구실 일정을 등록한다. 회식·출장·미팅·마감·제출 등 종류를 가리지 않는다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "무슨 일정인지 (예: 회식, 교수님 면담)" },
+        date: { type: "string", description: "YYYY-MM-DD. 반드시 <날짜표> 에 있는 날짜를 쓴다." },
+        time: { type: "string", description: "HH:MM (24시간). 종일이면 빈 문자열." },
+        member: { type: "array", items: { type: "string" },
+                  description: "참석자 (구성원 명단의 한글 이름). 랩 전체면 빈 배열." },
+        note: { type: "string", description: "비고. 없으면 빈 문자열." },
+        by: { type: "string", description: "등록을 요청한 사람 이름. 모르면 빈 문자열." },
+      },
+      required: ["title", "date"],
+    },
+  },
+  {
+    name: "delete_event",
+    description: "사이트에서 등록됐던 일정을 취소한다. <등록된 일정> 에 있는 id 만 지울 수 있다.",
+    input_schema: {
+      type: "object",
+      properties: { id: { type: "string", description: "취소할 일정의 id" } },
+      required: ["id"],
+    },
+  },
+];
 
 export default {
   async fetch(req, env, ctx) {
@@ -111,10 +154,15 @@ async function listEvents(env) {
 async function addEvent(req, env, ctx, json) {
   const limited = await checkWriteLimit(env, req);
   if (limited) return json({ error: limited }, 429);
-
   let b;
   try { b = await req.json(); } catch { return json({ error: "형식이 잘못됐습니다" }, 400); }
+  const r = await putEvent(b, env, ctx);
+  return r.error ? json({ error: r.error }, r.status || 400) : json(r);
+}
 
+/* 실제로 저장하는 곳. 폼(POST)과 AI 도구가 같은 문을 쓴다 —
+   따로 두면 한쪽 검사만 고치고 다른 쪽은 빠뜨리게 된다. */
+async function putEvent(b, env, ctx) {
   const str = (v, max) => String(v == null ? "" : v).trim().slice(0, max);
   const title = str(b.title, 60);
   const date = str(b.date, 10);
@@ -122,14 +170,14 @@ async function addEvent(req, env, ctx, json) {
   const note = str(b.note, 200);
   const by = str(b.by, 20);
 
-  if (!title) return json({ error: "무슨 일정인지 적어주세요" }, 400);
-  // 날짜는 페이지에서 이미 정규화해 보낸다. 서버는 형식만 확인한다.
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ error: "날짜 형식이 잘못됐습니다" }, 400);
+  if (!title) return { error: "무슨 일정인지 적어주세요" };
+  // 날짜는 부르는 쪽에서 정규화해 보낸다. 여기서는 형식만 확인한다.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date))
+    return { error: "날짜는 2026-09-25 형태여야 합니다" };
   const d = new Date(date + "T00:00:00Z");
-  if (isNaN(d) || d.toISOString().slice(0, 10) !== date)
-    return json({ error: "없는 날짜입니다" }, 400);
+  if (isNaN(d) || d.toISOString().slice(0, 10) !== date) return { error: "없는 날짜입니다" };
   if (time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time))
-    return json({ error: "시각 형식이 잘못됐습니다 (예: 14:30)" }, 400);
+    return { error: "시각은 14:30 처럼 24시간 형식이어야 합니다" };
 
   // 참석자는 실제 구성원인지 확인한다. 아무 이름이나 들어가면 남의 캘린더에 뜬다.
   let member = Array.isArray(b.member) ? b.member.map(x => str(x, 12)).filter(Boolean) : [];
@@ -139,18 +187,18 @@ async function addEvent(req, env, ctx, json) {
     try { known = (await loadData(env, ctx)).members || []; } catch {}
     if (known.length) {
       const bad = member.filter(m => !known.includes(m));
-      if (bad.length) return json({ error: `연구실 명단에 없는 이름입니다: ${bad.join(", ")}` }, 400);
+      if (bad.length) return { error: `연구실 명단에 없는 이름입니다: ${bad.join(", ")}` };
     }
   }
 
   const n = (await env.EVENTS.list({ prefix: "ev:", limit: 1000 })).keys.length;
   if (n >= MAX_EVENTS)
-    return json({ error: "등록된 일정이 너무 많습니다. 담당자에게 정리를 요청하세요." }, 409);
+    return { error: "등록된 일정이 너무 많습니다. 담당자에게 정리를 요청하세요.", status: 409 };
 
   const id = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
   const rec = { title, date, time, member, note, by, at: new Date().toISOString() };
   await env.EVENTS.put("ev:" + id, JSON.stringify(rec));
-  return json({ ok: true, id, ...rec });
+  return { ok: true, id, ...rec };
 }
 
 /* ---------------------------------------------------------------- AI */
@@ -177,45 +225,107 @@ async function askAi(req, env, ctx, json) {
     return json({ error: "일정 자료를 불러오지 못했습니다: " + e.message }, 502);
   }
 
-  let res;
+  const messages = [...history, { role: "user", content: q }];
+  const system = [
+    { type: "text", text: SYSTEM },
+    // 자료는 매번 같으므로 캐시해서 토큰 값을 아낀다
+    { type: "text", text: "<일정자료>\n" + facts.fixed + "\n</일정자료>",
+      cache_control: { type: "ephemeral" } },
+    // 방금 누가 넣었을 수 있으니 캐시 뒤에 붙인다 (이 부분만 매번 새로 읽힌다)
+    { type: "text", text: facts.live },
+  ];
+
+  /* 도구를 쓰면 한 번에 안 끝난다: 모델이 도구를 부르고 → 우리가 실행하고 →
+     결과를 돌려주면 그제서야 답을 쓴다. 무한히 돌지 않게 횟수를 막는다. */
+  let changed = false;
+  const actions = [];   // 페이지가 저장소 지연 반영을 메우는 데 쓴다 (방금 넣은 것을 바로 그리기)
+  for (let round = 0; round < MAX_ROUNDS; round++) {
+    let res;
+    try {
+      res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": env.ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: env.MODEL || MODEL,
+          max_tokens: MAX_TOKENS,
+          system,
+          tools: TOOLS,
+          messages,
+        }),
+      });
+    } catch (e) {
+      return json({ error: "AI 서버에 닿지 못했습니다" }, 502);
+    }
+
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      // 요금·한도 문제는 그대로 알려줘야 담당자가 조치할 수 있다
+      const msg = res.status === 401 ? "API 키가 잘못됐습니다"
+                : res.status === 429 ? "AI 서버 한도에 걸렸습니다. 잠시 뒤 다시 시도하세요"
+                : res.status === 400 && /credit|balance/i.test(detail) ? "API 잔액이 부족합니다"
+                : "AI 응답 실패 (" + res.status + ")";
+      return json({ error: msg }, 502);
+    }
+
+    const data = await res.json();
+    const blocks = data.content || [];
+    const calls = blocks.filter(b => b.type === "tool_use");
+
+    if (!calls.length || data.stop_reason !== "tool_use") {
+      const text = blocks.filter(b => b.type === "text").map(b => b.text).join("").trim();
+      return json({ text: text || "답을 만들지 못했습니다.", changed, actions,
+                    usage: data.usage || null });
+    }
+
+    messages.push({ role: "assistant", content: blocks });
+    const results = [];
+    for (const c of calls) {
+      const out = await runTool(c.name, c.input || {}, env, ctx, req);
+      if (out.ok) {
+        changed = true;
+        if (c.name === "add_event") actions.push({ type: "add", rec: out.data });
+        if (c.name === "delete_event") actions.push({ type: "delete", id: out.data.deleted });
+      }
+      results.push({
+        type: "tool_result", tool_use_id: c.id,
+        content: out.ok ? JSON.stringify(out.data) : ("오류: " + out.error),
+        is_error: !out.ok,
+      });
+    }
+    messages.push({ role: "user", content: results });
+  }
+  return json({ error: "정리하지 못했습니다. 좀 더 간단히 말해주세요.", changed, actions }, 200);
+}
+
+/* 모델이 부른 도구를 실제로 실행한다.
+   모델이 시켰다고 그대로 믿지 않는다 — 등록 경로와 똑같은 검사를 다시 거친다. */
+async function runTool(name, input, env, ctx, req) {
+  if (!env.EVENTS) return { ok: false, error: "저장소가 연결되지 않았습니다" };
   try {
-    res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: env.MODEL || MODEL,
-        max_tokens: MAX_TOKENS,
-        system: [
-          { type: "text", text: SYSTEM },
-          // 자료는 매번 같으므로 캐시해서 토큰 값을 아낀다
-          { type: "text", text: "<일정자료>\n" + facts + "\n</일정자료>",
-            cache_control: { type: "ephemeral" } },
-        ],
-        messages: [...history, { role: "user", content: q }],
-      }),
-    });
+    if (name === "add_event") {
+      const limited = await checkWriteLimit(env, req);
+      if (limited) return { ok: false, error: limited };
+      const r = await putEvent({
+        title: input.title, date: input.date, time: input.time,
+        member: input.member, note: input.note, by: input.by,
+      }, env, ctx);
+      return r.error ? { ok: false, error: r.error } : { ok: true, data: r };
+    }
+    if (name === "delete_event") {
+      const id = String(input.id || "");
+      if (!/^[A-Za-z0-9_-]{4,40}$/.test(id)) return { ok: false, error: "잘못된 id" };
+      if (!(await env.EVENTS.get("ev:" + id))) return { ok: false, error: "이미 없는 일정입니다" };
+      await env.EVENTS.delete("ev:" + id);
+      return { ok: true, data: { deleted: id } };
+    }
+    return { ok: false, error: "모르는 도구입니다: " + name };
   } catch (e) {
-    return json({ error: "AI 서버에 닿지 못했습니다" }, 502);
+    return { ok: false, error: "실행 중 오류: " + (e && e.message) };
   }
-
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    // 요금·한도 문제는 그대로 알려줘야 담당자가 조치할 수 있다
-    const msg = res.status === 401 ? "API 키가 잘못됐습니다"
-              : res.status === 429 ? "AI 서버 한도에 걸렸습니다. 잠시 뒤 다시 시도하세요"
-              : res.status === 400 && /credit|balance/i.test(detail) ? "API 잔액이 부족합니다"
-              : "AI 응답 실패 (" + res.status + ")";
-    return json({ error: msg }, 502);
-  }
-
-  const data = await res.json();
-  const text = (data.content || [])
-    .filter(b => b.type === "text").map(b => b.text).join("").trim();
-  return json({ text: text || "답을 만들지 못했습니다.", usage: data.usage || null });
 }
 
 /* ---------------------------------------------------------------- 일정 자료 */
@@ -229,20 +339,49 @@ async function loadData(env, ctx) {
   return await r.json();
 }
 
+/* 자료를 두 덩어리로 나눈다.
+   - 고정 자료(학회·발표·정기 일정·날짜표): 하루 종일 같다 → 프롬프트 캐시에 태운다
+   - 등록된 일정: 방금 누가 넣었을 수 있다 → 캐시하지 않고 매번 새로 읽는다
+   예전엔 둘을 묶어 60초 캐시했더니, 방금 등록한 것의 id 를 AI 가 몰라서
+   "방금 넣은 거 지워줘" 를 못 했다. */
 async function loadFacts(env, ctx) {
-  const cache = caches.default;
-  const ckey = new Request(env.DATA_URL + "#facts");
-  const hit = await cache.match(ckey);
-  if (hit) return await hit.text();
-
   const data = await loadData(env, ctx);
-  // 사이트에서 등록된 것도 AI 가 알아야 한다
   let added = [];
   try { if (env.EVENTS) added = await listEvents(env); } catch {}
-  const facts = summarize(data, added);
-  const put = new Response(facts, { headers: { "Cache-Control": "max-age=60" } });
-  ctx.waitUntil(cache.put(ckey, put.clone()));
-  return facts;
+  return { fixed: summarize(data), live: summarizeAdded(added) };
+}
+
+/* 날짜표. 모델이 "다음 주 화요일" 을 직접 세면 틀린다 (실제로 9/20 을 토요일이라 한 적이 있다).
+   아예 달력을 펼쳐 주고 거기서 고르게 한다. */
+function dateTable(today) {
+  const WD = ["일", "월", "화", "수", "목", "금", "토"];
+  const base = new Date(today + "T00:00:00Z");
+  const dow = base.getUTCDay();
+  const thisMon = new Date(base); thisMon.setUTCDate(base.getUTCDate() - ((dow + 6) % 7));
+  const L = [];
+  for (let i = 0; i < DATE_DAYS; i++) {
+    const t = new Date(base); t.setUTCDate(base.getUTCDate() + i);
+    const iso = t.toISOString().slice(0, 10);
+    const weeks = Math.floor((t - thisMon) / (7 * 86400000));
+    const wk = weeks === 0 ? "이번 주" : weeks === 1 ? "다음 주" : weeks === 2 ? "다다음 주" : `${weeks}주 뒤`;
+    const rel = i === 0 ? " · 오늘" : i === 1 ? " · 내일" : i === 2 ? " · 모레" : "";
+    L.push(`${iso} ${t.getUTCMonth() + 1}/${t.getUTCDate()}(${WD[t.getUTCDay()]}) ${wk}${rel}`);
+  }
+  return L.join("\n");
+}
+
+function summarizeAdded(added) {
+  const today = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+  const rows = (added || []).filter(x => x.date >= today);
+  if (!rows.length) return "<등록된 일정>\n(없음)\n</등록된 일정>";
+  const WD = ["일", "월", "화", "수", "목", "금", "토"];
+  const fd = iso => { const t = new Date(iso + "T00:00:00Z");
+    return `${t.getUTCMonth() + 1}/${t.getUTCDate()}(${WD[t.getUTCDay()]})`; };
+  return "<등록된 일정> (delete_event 로 지울 수 있는 것은 이것뿐)\n"
+    + rows.map(x => `- id=${x.id} | ${fd(x.date)} ${x.time || "종일"} | ${x.title}`
+      + (x.member && x.member.length ? ` | ${x.member.join(", ")}` : "")
+      + (x.note ? ` | ${x.note}` : "") + (x.by ? ` | 등록: ${x.by}` : "")).join("\n")
+    + "\n</등록된 일정>";
 }
 
 // 자료에는 kind 가 영어로 들어 있다. 그대로 넣으면 AI 가 "camera_ready" 라고 답한다.
@@ -261,7 +400,7 @@ function cleanNote(s) {
 }
 
 /* data.json 을 사람이 읽는 줄글로. 그대로 넣으면 토큰이 두 배로 든다. */
-function summarize(d, added) {
+function summarize(d) {
   const today = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
   const WD = ["일", "월", "화", "수", "목", "금", "토"];
   const dd = iso => {
@@ -306,15 +445,9 @@ function summarize(d, added) {
         + (note ? ` | ${note}` : ""));
     });
 
-  const mine = (added || []).filter(x => x.date >= today);
-  if (mine.length) {
-    L.push("", "[사이트에서 등록된 일정]");
-    mine.forEach(x => L.push(`- ${fd(x.date)} ${x.time || ""} ${dd(x.date)} | ${x.title}`
-      + (x.member && x.member.length ? ` | ${x.member.join(", ")}` : "")
-      + (x.note ? ` | ${x.note}` : "") + (x.by ? ` | 등록: ${x.by}` : "")));
-  }
-
   L.push("", "연차 정보는 이 자료에 없습니다.");
+  L.push("", "<날짜표> 날짜는 여기서 골라 YYYY-MM-DD 로 넘기세요. 직접 계산하지 마세요.",
+         dateTable(today), "</날짜표>");
   return L.join("\n");
 }
 
