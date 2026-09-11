@@ -6,7 +6,7 @@
  *  POST /events      일정 등록          ← API 키 필요 없음. 이것만 쓰려면 키 없이 배포해도 된다.
  *  GET  /events      등록된 일정 목록
  *  DEL  /events/:id  등록 취소
- *  POST /ai          AI 에게 질문        ← ANTHROPIC_API_KEY 를 넣었을 때만 동작
+ *  POST /ai          AI 에이전트에 질문   ← Workers AI (키·결제 없음, 하루 무료 한도)
  *
  * 왜 서버가 필요한가:
  *  - 등록: GitHub Pages 는 정적이라 글을 쓸 곳이 없다. 저장할 데가 필요하다.
@@ -15,16 +15,18 @@
  * 배포: wrangler deploy   (설정은 wrangler.toml)
  */
 
-const MODEL = "claude-sonnet-5";
+const MODEL = "@cf/google/gemma-4-26b-a4b-it";   // wrangler.toml 의 MODEL 이 우선
 const MAX_Q = 400;          // 질문 글자 수 상한
-const MAX_TOKENS = 700;     // 답 길이 상한
+const MAX_TOKENS = 1200;    // 답 길이 상한 (추론 모델은 생각에도 토큰을 쓴다)
 const PER_IP_HOUR = 30;     // IP당 시간당 질문 수
 const WRITE_PER_IP_HOUR = 20;  // IP당 시간당 등록 수
 const DAILY_TOTAL = 500;    // AI 전체 일일 상한 (요금 폭주 차단)
 const MAX_EVENTS = 400;     // 저장할 일정 개수 상한 (스팸으로 채워지는 것 방지)
 const DATA_TTL = 600;       // 일정 자료 캐시 (초)
 const MAX_ROUNDS = 4;       // 도구 호출 왕복 상한 (무한 반복·요금 폭주 방지)
-const DATE_DAYS = 70;       // 날짜표에 넣을 날 수 (오늘부터)
+const DATE_DAYS = 45;       // 날짜표에 넣을 날 수 (오늘부터). 길수록 질문마다 뉴런이 더 든다
+// 모델이 답을 못 썼을 때. 애매한 말에 생각만 하다 끝나는 일이 실제로 있었다.
+const EMPTY_REPLY = '무슨 뜻인지 정리하지 못했습니다. "다음 주 화요일 회식 잡아줘", "이번 주 뭐 있어?" 처럼 말해주세요.';
 
 const SYSTEM = `당신은 인천대학교 에너지공정시스템 연구실의 일정 안내 담당입니다.
 아래 <일정자료> 안에 있는 내용만으로 답하세요.
@@ -39,6 +41,9 @@ const SYSTEM = `당신은 인천대학교 에너지공정시스템 연구실의 
   끝난 일을 짚지 말고, 없으면 "남은 일정이 없습니다" 라고만 하세요.
 - 연차 정보는 이 자료에 없습니다. 물으면 담당자에게 문의하라고 하세요.
 - 일정과 무관한 질문(번역, 코드, 잡담 등)은 정중히 거절하세요.
+- "새로고침해줘 / 다시 불러와줘" 는 화면이 알아서 최신 목록을 다시 받습니다.
+  도구 없이 "최신 일정으로 다시 불러왔습니다." 한 줄만 답하세요.
+- 뜻이 애매하면 오래 고민하지 말고 한 줄로 되물으세요.
 
 등록·취소 (도구를 씁니다)
 - "넣어줘 / 잡아줘 / 등록해줘 / 추가해줘" → add_event 를 부르세요. 종류를 가리지 마세요.
@@ -46,6 +51,8 @@ const SYSTEM = `당신은 인천대학교 에너지공정시스템 연구실의 
 - "지워줘 / 취소해줘 / 빼줘" → delete_event 를 부르세요. id 는 <등록된 일정> 에 적혀 있습니다.
   <학회 마감>·<우리 랩 발표>·<정기 미팅> 은 id 가 없어 지울 수 없습니다.
   그런 걸 지워달라면 담당자에게 말하라고 안내하세요.
+- "바꿔줘 / 옮겨줘 / 미뤄줘 / 당겨줘" → update_event 를 부르세요. id 와 바꿀 값만 넘기세요.
+  지우고 다시 넣지 마세요. "방금 넣은 거" 는 <등록된 일정> 에서 가장 최근 것입니다.
 - **날짜는 <날짜표> 에 적힌 것을 그대로 쓰세요.** "다음 주 화요일" 이 며칠인지 직접 세지 마세요.
   날짜표에 없는 날이면 사용자에게 되물으세요.
 - 시각은 24시간 HH:MM 으로 넘기세요. "오후 6시" 는 18:00 입니다. 없으면 비워 두세요.
@@ -70,6 +77,22 @@ const TOOLS = [
         by: { type: "string", description: "등록을 요청한 사람 이름. 모르면 빈 문자열." },
       },
       required: ["title", "date"],
+    },
+  },
+  {
+    name: "update_event",
+    description: "사이트에서 등록된 일정의 날짜·시각·제목·참석자·비고를 바꾼다. 바꿀 값만 넘긴다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "바꿀 일정의 id (<등록된 일정> 에 있다)" },
+        title: { type: "string", description: "새 제목" },
+        date: { type: "string", description: "새 날짜 YYYY-MM-DD. 반드시 <날짜표> 에서 고른다." },
+        time: { type: "string", description: "새 시각 HH:MM (24시간). 종일로 바꾸려면 빈 문자열." },
+        member: { type: "array", items: { type: "string" }, description: "새 참석자 (구성원 한글 이름)" },
+        note: { type: "string", description: "새 비고" },
+      },
+      required: ["id"],
     },
   },
   {
@@ -125,8 +148,8 @@ export default {
     // ---- AI (키가 있을 때만) ----
     if (path === "/ai" || path === "/") {
       if (req.method !== "POST") return json({ error: "POST 로 보내주세요" }, 405);
-      if (!env.ANTHROPIC_API_KEY)
-        return json({ error: "이 서버에는 AI 가 연결돼 있지 않습니다 (등록 기능만 씁니다)" }, 501);
+      if (!env.AI)
+        return json({ error: "이 서버에는 AI 가 연결돼 있지 않습니다 (wrangler.toml 의 [ai] 확인)" }, 501);
       return await askAi(req, env, ctx, json);
     }
 
@@ -162,7 +185,7 @@ async function addEvent(req, env, ctx, json) {
 
 /* 실제로 저장하는 곳. 폼(POST)과 AI 도구가 같은 문을 쓴다 —
    따로 두면 한쪽 검사만 고치고 다른 쪽은 빠뜨리게 된다. */
-async function putEvent(b, env, ctx) {
+async function putEvent(b, env, ctx, keepId) {
   const str = (v, max) => String(v == null ? "" : v).trim().slice(0, max);
   const title = str(b.title, 60);
   const date = str(b.date, 10);
@@ -191,11 +214,12 @@ async function putEvent(b, env, ctx) {
     }
   }
 
-  const n = (await env.EVENTS.list({ prefix: "ev:", limit: 1000 })).keys.length;
+  // 바꾸기는 개수가 늘지 않으니 상한 검사를 건너뛴다
+  const n = keepId ? 0 : (await env.EVENTS.list({ prefix: "ev:", limit: 1000 })).keys.length;
   if (n >= MAX_EVENTS)
     return { error: "등록된 일정이 너무 많습니다. 담당자에게 정리를 요청하세요.", status: 409 };
 
-  const id = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+  const id = keepId || crypto.randomUUID().replace(/-/g, "").slice(0, 12);
   const rec = { title, date, time, member, note, by, at: new Date().toISOString() };
   await env.EVENTS.put("ev:" + id, JSON.stringify(rec));
   return { ok: true, id, ...rec };
@@ -225,80 +249,85 @@ async function askAi(req, env, ctx, json) {
     return json({ error: "일정 자료를 불러오지 못했습니다: " + e.message }, 502);
   }
 
-  const messages = [...history, { role: "user", content: q }];
-  const system = [
-    { type: "text", text: SYSTEM },
-    // 자료는 매번 같으므로 캐시해서 토큰 값을 아낀다
-    { type: "text", text: "<일정자료>\n" + facts.fixed + "\n</일정자료>",
-      cache_control: { type: "ephemeral" } },
-    // 방금 누가 넣었을 수 있으니 캐시 뒤에 붙인다 (이 부분만 매번 새로 읽힌다)
-    { type: "text", text: facts.live },
+  /* Cloudflare Workers AI 로 돌린다 — API 키도 결제도 없다.
+     형식은 OpenAI 방식이다 (실제 응답을 받아보고 맞췄다):
+       요청  messages + tools:[{type:"function", function:{name, description, parameters}}]
+       응답  choices[0].message.tool_calls[].function.arguments  ← JSON "문자열"
+       결과  {role:"tool", tool_call_id, content} 로 돌려주면 이어서 답을 쓴다 */
+  const messages = [
+    { role: "system", content: SYSTEM
+        + "\n\n<일정자료>\n" + facts.fixed + "\n</일정자료>\n\n" + facts.live },
+    ...history,
+    { role: "user", content: q },
   ];
+  const tools = TOOLS.map(t => ({ type: "function",
+    function: { name: t.name, description: t.description, parameters: t.input_schema } }));
 
   /* 도구를 쓰면 한 번에 안 끝난다: 모델이 도구를 부르고 → 우리가 실행하고 →
      결과를 돌려주면 그제서야 답을 쓴다. 무한히 돌지 않게 횟수를 막는다. */
   let changed = false;
   const actions = [];   // 페이지가 저장소 지연 반영을 메우는 데 쓴다 (방금 넣은 것을 바로 그리기)
   for (let round = 0; round < MAX_ROUNDS; round++) {
-    let res;
+    let r;
     try {
-      res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": env.ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: env.MODEL || MODEL,
-          max_tokens: MAX_TOKENS,
-          system,
-          tools: TOOLS,
-          messages,
-        }),
-      });
+      const model = env.MODEL || MODEL;
+      const opts = { messages, tools, max_tokens: MAX_TOKENS };
+      // Gemma 는 애매한 말에 속으로 오래 고민하다 토큰을 다 써서 빈 답을 낸다
+      // (실측: "새로고침해줘" 에 생각만 1200토큰, 82뉴런, 답 없음). 생각 강도를 낮춘다.
+      if (/gemma/i.test(model)) opts.reasoning_effort = "low";
+      r = await env.AI.run(model, opts);
     } catch (e) {
-      return json({ error: "AI 서버에 닿지 못했습니다" }, 502);
+      const m = String((e && e.message) || e);
+      // 무료 한도를 다 쓰면 그날은 에러가 난다. 이유를 숨기지 않아야 사람이 이해한다.
+      const msg = /neuron|daily|quota|limit|4006/i.test(m)
+        ? "오늘 AI 무료 사용량을 다 썼습니다. 내일 09시에 다시 됩니다."
+        : "AI 응답 실패: " + m.slice(0, 120);
+      return json({ error: msg, changed, actions }, 502);
     }
 
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      // 요금·한도 문제는 그대로 알려줘야 담당자가 조치할 수 있다
-      const msg = res.status === 401 ? "API 키가 잘못됐습니다"
-                : res.status === 429 ? "AI 서버 한도에 걸렸습니다. 잠시 뒤 다시 시도하세요"
-                : res.status === 400 && /credit|balance/i.test(detail) ? "API 잔액이 부족합니다"
-                : "AI 응답 실패 (" + res.status + ")";
-      return json({ error: msg }, 502);
+    const { text, calls, raw } = readAi(r);
+
+    if (!calls.length) {
+      return json({ text: text || EMPTY_REPLY, changed, actions,
+                    usage: r && r.usage || null });
     }
 
-    const data = await res.json();
-    const blocks = data.content || [];
-    const calls = blocks.filter(b => b.type === "tool_use");
-
-    if (!calls.length || data.stop_reason !== "tool_use") {
-      const text = blocks.filter(b => b.type === "text").map(b => b.text).join("").trim();
-      return json({ text: text || "답을 만들지 못했습니다.", changed, actions,
-                    usage: data.usage || null });
-    }
-
-    messages.push({ role: "assistant", content: blocks });
-    const results = [];
+    messages.push({ role: "assistant", content: raw || "",
+      tool_calls: calls.map(c => ({ id: c.id, type: "function",
+        function: { name: c.name, arguments: JSON.stringify(c.args) } })) });
     for (const c of calls) {
-      const out = await runTool(c.name, c.input || {}, env, ctx, req);
+      const out = await runTool(c.name, c.args, env, ctx, req);
       if (out.ok) {
         changed = true;
         if (c.name === "add_event") actions.push({ type: "add", rec: out.data });
         if (c.name === "delete_event") actions.push({ type: "delete", id: out.data.deleted });
+        if (c.name === "update_event") actions.push({ type: "add", rec: out.data });
       }
-      results.push({
-        type: "tool_result", tool_use_id: c.id,
-        content: out.ok ? JSON.stringify(out.data) : ("오류: " + out.error),
-        is_error: !out.ok,
-      });
+      messages.push({ role: "tool", tool_call_id: c.id, name: c.name,
+        content: out.ok ? JSON.stringify(out.data) : ("오류: " + out.error) });
     }
-    messages.push({ role: "user", content: results });
   }
   return json({ error: "정리하지 못했습니다. 좀 더 간단히 말해주세요.", changed, actions }, 200);
+}
+
+/* Workers AI 응답에서 답 글자와 도구 호출을 뽑는다.
+   모델마다 모양이 조금씩 달라서 두 가지를 다 받는다:
+   - OpenAI 방식: choices[0].message.{content, tool_calls[].function.{name, arguments(문자열)}}
+   - 예전 방식:   {response, tool_calls[].{name, arguments(객체)}}
+   추론 모델은 <think>…</think> 를 본문에 섞기도 해서 걷어낸다. */
+function readAi(r) {
+  const msg = r && r.choices && r.choices[0] && r.choices[0].message;
+  const rawCalls = (msg && msg.tool_calls && msg.tool_calls.length ? msg.tool_calls : null)
+                || (r && r.tool_calls) || [];
+  const calls = rawCalls.map((c, i) => {
+    const name = (c.function && c.function.name) || c.name || "";
+    let args = c.function ? c.function.arguments : c.arguments;
+    if (typeof args === "string") { try { args = JSON.parse(args); } catch { args = {}; } }
+    return { id: c.id || ("call_" + i), name, args: args || {} };
+  }).filter(c => c.name);
+  const raw = (msg ? msg.content : r && r.response) || "";
+  const text = String(raw).replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+  return { text, calls, raw: typeof raw === "string" ? raw : "" };
 }
 
 /* 모델이 부른 도구를 실제로 실행한다.
@@ -313,6 +342,20 @@ async function runTool(name, input, env, ctx, req) {
         title: input.title, date: input.date, time: input.time,
         member: input.member, note: input.note, by: input.by,
       }, env, ctx);
+      return r.error ? { ok: false, error: r.error } : { ok: true, data: r };
+    }
+    if (name === "update_event") {
+      const limited = await checkWriteLimit(env, req);
+      if (limited) return { ok: false, error: limited };
+      const id = String(input.id || "");
+      if (!/^[A-Za-z0-9_-]{4,40}$/.test(id)) return { ok: false, error: "잘못된 id" };
+      const cur = await env.EVENTS.get("ev:" + id, "json");
+      if (!cur) return { ok: false, error: "이미 없는 일정입니다" };
+      // 넘어온 값만 덮어쓰고, 합친 결과를 등록과 똑같은 검사에 다시 통과시킨다
+      const merged = { ...cur };
+      for (const k of ["title", "date", "time", "member", "note"])
+        if (input[k] !== undefined) merged[k] = input[k];
+      const r = await putEvent(merged, env, ctx, id);
       return r.error ? { ok: false, error: r.error } : { ok: true, data: r };
     }
     if (name === "delete_event") {
