@@ -274,7 +274,7 @@ footer code{font-family:"IBM Plex Mono",monospace; background:var(--surface-2); 
 <script>
 const DATA = /*DATA*/{
   "lab": "인천대 연구실",
-  "generated": "2026-09-14T14:14:26",
+  "generated": "2026-09-14T14:35:23",
   "today": "2026-09-14",
   "members": [
     "김종우",
@@ -2595,7 +2595,11 @@ function parseAdd(raw){
        .replace(/(에다가|에다|에서|에|으로|로|은|는|이|가|을|를)\s+/g, " ")
        .replace(/\s{2,}/g, " ").trim();
   if (!s) return {err:"무슨 일정인지 알려주세요. 예: \"9/25 회식 추가해줘\""};
-  return {rec:{title:s.slice(0,60), date:iso, time, member, note:"", by:""}};
+  /* "10/1 현지수 연차" 는 이름이 참석자로 빠져서 제목에 "연차" 만 남는다.
+     캘린더에서 누구 연차인지 보이도록 이름을 도로 붙인다. */
+  let title = s.slice(0, 60);
+  if (/^(연차|휴가)$/.test(title) && member.length === 1) title = member[0] + " " + title;
+  return {rec:{title, date:iso, time, member, note:"", by:""}};
 }
 
 function localAnswer(q){
