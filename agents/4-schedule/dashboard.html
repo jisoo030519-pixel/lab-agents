@@ -274,7 +274,7 @@ footer code{font-family:"IBM Plex Mono",monospace; background:var(--surface-2); 
 <script>
 const DATA = /*DATA*/{
   "lab": "인천대 연구실",
-  "generated": "2026-09-14T13:57:21",
+  "generated": "2026-09-14T14:11:05",
   "today": "2026-09-14",
   "members": [
     "김종우",
@@ -2159,6 +2159,34 @@ const siteStore = {
     sitePending.set(id, {rec:null, at:Date.now(), deleted:true});
     return j;
   },
+
+  /* 그 주만 바꾸는 예외 (휴강·이동).
+     일정과 따로 두는 이유: "개인미팅을 쉰다" 는 새 일정이 아니라
+     원래 있던 정기 회차를 지우는 일이라 성격이 다르다. */
+  async loadOv(){
+    if (!this.on()) return [];
+    const r = await fetch(this.base() + "/overrides", {headers:{"Accept":"application/json"}});
+    if (!r.ok) throw new Error("예외 목록 " + r.status);
+    const j = await r.json();
+    return j.overrides || [];
+  },
+  async addOv(rec){
+    const r = await fetch(this.base() + "/overrides", {
+      method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(rec)});
+    const j = await r.json().catch(() => null);
+    /* 예전에 올린 서버에는 /overrides 가 아예 없다. "없는 주소입니다" 를 그대로 보여주면
+       쓰는 사람은 무슨 말인지 알 수 없다. 무엇을 해야 하는지로 바꿔 말한다. */
+    if (r.status === 404 && (!j || /없는 주소/.test(j.error || "")))
+      throw new Error("서버가 아직 주간 공지를 받을 준비가 안 됐습니다. 담당자가 서버를 다시 올려야 합니다.");
+    if (!r.ok || !j || j.error) throw new Error((j && j.error) || ("예외 등록 실패 " + r.status));
+    return j;
+  },
+  async removeOv(id){
+    const r = await fetch(this.base() + "/overrides/" + encodeURIComponent(id), {method:"DELETE"});
+    const j = await r.json().catch(() => null);
+    if (!r.ok || !j || j.error) throw new Error((j && j.error) || ("예외 취소 실패 " + r.status));
+    return j;
+  },
 };
 
 /* 방금 내가 등록·취소한 것.
@@ -2175,7 +2203,16 @@ const PENDING_MS = 120000;
 async function siteRefresh(){
   if (!siteStore.on()) return;
   try {
-    const rows = await siteStore.load();
+    /* 예외 목록은 따로 받고, 실패해도 일정 표시는 살린다.
+       서버를 아직 안 올린 동안에는 /overrides 가 없어 404 가 난다 —
+       그때 통째로 죽으면 멀쩡한 일정까지 화면에서 사라진다. */
+    const [rows, ovs] = await Promise.all([
+      siteStore.load(),
+      siteStore.loadOv().catch(() => null),
+    ]);
+    // 휴강·이동 예외는 그대로 싣는다. 정기 회차를 지우는 처리는 buildAll 이 이미 한다.
+    if (ovs) addedOverrides = ovs.map(o => ({id:o.id, title:o.title, date:o.date,
+      action:o.action || "skip", to:o.to || "", note:o.note || "", remote:true}));
     const now = Date.now();
     for (const [id, p] of sitePending) if (now - p.at > PENDING_MS) sitePending.delete(id);
 
@@ -2195,6 +2232,89 @@ async function siteRefresh(){
   } catch (e) {
     console.warn("등록 일정을 불러오지 못했습니다:", e.message);
   }
+}
+
+/* ── 주간 공지 ─────────────────────────────────────────────────
+   "- 개인미팅: 화
+    - 학부 스터디: 화 15:00-16:00
+    - 랩세미나: 금 11:00 - 12:00 (연구발표: 나경 / 논문발표: 서현 /비대면)"
+   같은 공지를 그대로 받아 그 주 정기 일정을 맞춘다.
+
+   줄바꿈 없이 " - " 로 이어 붙여 보내는 경우가 많아서, 하이픈 뒤에
+   "한글이름:" 이 올 때만 자른다. 그래야 "11:00 - 12:00" 이 안 잘린다. */
+function routineNames(){
+  return [...new Set((DATA.personal || []).filter(p => p.repeat).map(p => p.title))];
+}
+function matchRoutineName(raw){
+  const flat = String(raw).replace(/\s+/g, "");
+  return routineNames().find(n => n.replace(/\s+/g, "") === flat)
+      || routineNames().find(n => flat.includes(n.replace(/\s+/g, ""))
+                               || n.replace(/\s+/g, "").includes(flat)) || null;
+}
+function parseNotice(text){
+  const out = [];
+  for (let line of String(text).split(/\n|\s*[-•*]\s*(?=[가-힣][가-힣\s]{0,10}\s*[:：])/)){
+    line = line.trim().replace(/^[-•*]\s*/, "");
+    const m = line.match(/^(.+?)\s*[:：]\s*(.+)$/);
+    if (!m) continue;
+    const name = matchRoutineName(m[1]);
+    if (!name) continue;                       // 정기 일정 이름만 받는다
+    let rest = m[2].trim();
+    const note = (rest.match(/\((.+?)\)/) || [])[1] || "";
+    rest = rest.replace(/\([^)]*\)/g, " ").trim();
+    if (!rest || /^(x|없음|휴강|안\s*함|없습니다)$/i.test(rest)){ out.push({name, slots:[], note}); continue; }
+    const slots = rest.split(/[,/]/).map(s => s.trim()).filter(s => /[월화수목금토일]/.test(s));
+    out.push({name, slots: slots.length ? slots : [rest], note});
+  }
+  return out;
+}
+
+/* 아티팩트의 set_week 와 같은 일을 한다. 저장만 중계 서버로 갈 뿐이다.
+   파싱(parseSlot)과 주 계산(weekMonday)은 같은 함수를 쓴다 — 두 벌로 두면
+   한쪽만 고치게 된다. */
+async function siteSetWeek(text, weekSpec){
+  const items = parseNotice(text);
+  if (!items.length) throw new Error("공지에서 정기 일정을 찾지 못했습니다 (개인미팅·학부스터디·랩세미나)");
+  const mon = weekMonday(weekSpec || "this");
+  const monIso = isoOf(mon);
+  const days = {};
+  for (let i = 0; i < 7; i++) days[(i + 1) % 7] = isoOf(new Date(mon.getTime() + i * 86400000));
+  const weekDates = new Set(Object.values(days));
+
+  // 같은 주에 두 번 반영해도 쌓이지 않게, 그 주에 우리가 만든 것부터 치운다
+  for (const o of addedOverrides.filter(o => o.remote && weekDates.has(o.date)))
+    await siteStore.removeOv(o.id);
+  for (const e of addedEvents.filter(e => e.remote && weekDates.has(e.date)))
+    await siteStore.remove(e.id);
+
+  const done = [];
+  for (const it of items){
+    // 그 주에 원래 잡혀 있던 회차를 쉬게 한다 (순서는 살려서 다시 붙인다)
+    let keptOrder = null;
+    for (const p of (DATA.personal || [])){
+      if (p.title !== it.name) continue;
+      const d = p.due.slice(0, 10);
+      if (!weekDates.has(d)) continue;
+      if (p.order && p.order.length) keptOrder = p.order;
+      await siteStore.addOv({title:it.name, date:d, action:"skip", to:"",
+        note:"주간 공지 반영", week:monIso, origin:"set_week"});
+    }
+    if (!it.slots.length){ done.push(`${it.name}: 없음`); continue; }
+
+    const made = [];
+    for (const sl of it.slots){
+      const {day, start, end, note} = parseSlot(sl);
+      const date = days[DAYNUM[day]];
+      if (!date) continue;
+      const bits = [note, it.note, end ? "~" + end : ""].filter(Boolean).join(", ");
+      await siteStore.add({title:it.name, date, time:start, member:[], by:"",
+        note:[bits, keptOrder ? "순서: " + keptOrder.join(" → ") : ""].filter(Boolean).join(" / ")});
+      made.push(`${day} ${start || "시각미정"}${end ? "~" + end : ""}`);
+    }
+    done.push(`${it.name}: ${made.join(", ") || "시각을 못 읽었습니다"}`);
+  }
+  await siteRefresh();
+  return {week: monIso, applied: done};
 }
 
 /* 이 화면에서 등록한 항목은 캘린더·목록에서 바로 지운다 — 챗봇을 거치지 않는다 */
@@ -2740,6 +2860,23 @@ async function ask(text){
         bubble("ai", "이 화면에서는 등록이 안 됩니다. 담당자에게 말해주세요.");
         logEl().scrollTop = logEl().scrollHeight; return;
       }
+      // 주간 공지면 한 건 등록이 아니라 그 주 정기 일정을 통째로 맞춘다
+      if (parseNotice(text).length){
+        const out = bubble("ai", "이번 주 일정 맞추는 중…");
+        busy = true;
+        try {
+          const r = await siteSetWeek(text, /다음\s*주/.test(text) ? "next" : "this");
+          out.textContent = `${fmtDate(r.week)} 주로 반영했습니다.\n`
+            + r.applied.map(s => "· " + s).join("\n")
+            + "\n다르면 캘린더에서 그 항목을 눌러 지우면 됩니다.";
+        } catch (e) {
+          out.remove();
+          bubble("err", "반영하지 못했습니다: " + e.message);
+        } finally { busy = false; }
+        logEl().scrollTop = logEl().scrollHeight;
+        return;
+      }
+
       const p = parseAdd(text);
       if (p.err){ bubble("err", p.err); logEl().scrollTop = logEl().scrollHeight; return; }
       const out = bubble("ai", "등록 중…");

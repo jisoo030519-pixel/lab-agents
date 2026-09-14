@@ -145,6 +145,65 @@ export default {
       return json({ error: "GET / POST / DELETE 만 받습니다" }, 405);
     }
 
+    /* ---- 그 주만 바꾸는 예외 (휴강·이동) ----
+       주간 공지를 반영하려면 "그 주 개인미팅은 쉰다" 를 적어둘 곳이 필요하다.
+       일정과 같은 저장소를 쓰되 ov: 를 앞에 붙여 구분한다. */
+    if (path === "/overrides" || path.startsWith("/overrides/")) {
+      if (!env.EVENTS) return json({ error: "서버에 저장소(EVENTS)가 연결되지 않았습니다" }, 500);
+
+      if (req.method === "GET") {
+        const out = [];
+        let cursor;
+        do {
+          const page = await env.EVENTS.list({ prefix: "ov:", cursor, limit: 1000 });
+          for (const k of page.keys) {
+            const v = await env.EVENTS.get(k.name, "json");
+            if (v) out.push({ id: k.name.slice(3), ...v });
+          }
+          cursor = page.list_complete ? null : page.cursor;
+        } while (cursor);
+        return json({ overrides: out });
+      }
+
+      if (req.method === "POST") {
+        const limited = await checkWriteLimit(env, req);
+        if (limited) return json({ error: limited }, 429);
+        let b;
+        try { b = await req.json(); } catch { return json({ error: "형식이 잘못됐습니다" }, 400); }
+        const str = (v, max) => String(v == null ? "" : v).trim().slice(0, max);
+        const title = str(b.title, 30);
+        const date = str(b.date, 10);
+        const action = str(b.action, 6) || "skip";
+        const to = str(b.to, 16);
+        if (!title) return json({ error: "무슨 일정인지 적어주세요" }, 400);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ error: "날짜는 2026-09-25 형태여야 합니다" }, 400);
+        if (new Date(date + "T00:00:00Z").toISOString().slice(0, 10) !== date)
+          return json({ error: "없는 날짜입니다" }, 400);
+        if (action !== "skip" && action !== "move")
+          return json({ error: "action 은 skip 또는 move 입니다" }, 400);
+        if (to && !/^\d{4}-\d{2}-\d{2}(T([01]\d|2[0-3]):[0-5]\d)?$/.test(to))
+          return json({ error: "옮길 곳은 2026-09-25 또는 2026-09-25T15:00 형태여야 합니다" }, 400);
+        if ((await env.EVENTS.list({ prefix: "ov:", limit: 1000 })).keys.length >= MAX_EVENTS)
+          return json({ error: "예외가 너무 많습니다. 담당자에게 정리를 요청하세요." }, 409);
+
+        const id = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+        const rec = { title, date, action, to, note: str(b.note, 100),
+                      week: str(b.week, 10), origin: str(b.origin, 20) || "site",
+                      at: new Date().toISOString() };
+        await env.EVENTS.put("ov:" + id, JSON.stringify(rec));
+        return json({ ok: true, id, ...rec });
+      }
+
+      if (req.method === "DELETE") {
+        const id = path.slice("/overrides/".length);
+        if (!/^[A-Za-z0-9_-]{4,40}$/.test(id)) return json({ error: "잘못된 id" }, 400);
+        if (!(await env.EVENTS.get("ov:" + id))) return json({ error: "이미 없는 예외입니다" }, 404);
+        await env.EVENTS.delete("ov:" + id);
+        return json({ ok: true, id });
+      }
+      return json({ error: "GET / POST / DELETE 만 받습니다" }, 405);
+    }
+
     // ---- AI (키가 있을 때만) ----
     if (path === "/ai" || path === "/") {
       if (req.method !== "POST") return json({ error: "POST 로 보내주세요" }, 405);
