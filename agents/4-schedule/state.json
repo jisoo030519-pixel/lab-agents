@@ -1,4 +1,5 @@
 {
+  "ai_endpoint": "https://lab-schedule.epad-lab.workers.dev",
   "archive": [
     {
       "due": "2026-07-10",
