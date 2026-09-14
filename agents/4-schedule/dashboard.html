@@ -274,7 +274,7 @@ footer code{font-family:"IBM Plex Mono",monospace; background:var(--surface-2); 
 <script>
 const DATA = /*DATA*/{
   "lab": "인천대 연구실",
-  "generated": "2026-09-14T13:47:16",
+  "generated": "2026-09-14T13:57:21",
   "today": "2026-09-14",
   "members": [
     "김종우",
@@ -2426,6 +2426,22 @@ function parseAdd(raw){
   let s = " " + raw.trim() + " ";
   const eat = re => { const m = s.match(re); if (m) s = s.replace(m[0], " "); return m; };
 
+  /* 주간 공지는 이 화면에서 못 받는다. 그 주의 정기 일정을 쉬거나 옮기는 일이라
+     한 건 등록과 다르다 (담당자 화면의 set_week 가 한다).
+     "날짜를 못 알아들었습니다" 로 끝내면 왜 안 되는지 알 수가 없다. */
+  if (/개인\s*미팅|학부\s*스터디|랩\s*세미나/.test(raw)
+      && (/[월화수목금토일]\s*\d{1,2}\s*:\s*\d{2}/.test(raw) || raw.split("\n").length >= 2))
+    return {err:"주간 공지는 이 화면에서 반영할 수 없습니다. 담당자 화면에 그대로 붙여넣으면 "
+      + "그 주의 개인미팅·학부스터디·랩세미나가 한 번에 맞춰집니다."};
+
+  // 시각을 날짜보다 먼저 떼어낸다. 안 그러면 "15:00-16:00" 의 00-16 을 날짜로 읽는다.
+  let time = "";
+  const tm = eat(/(오전|오후|아침|저녁)?\s*(\d{1,2}\s*:\s*\d{2}|\d{1,2}\s*시(\s*\d{1,2}\s*분|\s*반)?)/);
+  if (tm){ try { time = checkTime(tm[0]); } catch (e) { return {err:e.message}; } }
+  // "11:00 - 12:00" 처럼 범위로 적으면 뒤쪽 시각이 제목에 남는다. 같이 떼어낸다.
+  if (time) eat(/\s*[-~–—]\s*(\d{1,2}\s*:\s*\d{2}|\d{1,2}\s*시(\s*\d{1,2}\s*분|\s*반)?)/);
+  eat(/(오전|오후|아침|저녁)/);   // 시각 없이 "오후" 만 있으면 버린다
+
   // 날짜 — localAnswer 와 같은 규칙
   let date = null;
   const md = eat(/(\d{1,2})\s*[\/월.\-]\s*(\d{1,2})\s*일?/);
@@ -2448,12 +2464,6 @@ function parseAdd(raw){
     if (new Date(iso + "T00:00:00Z").toISOString().slice(0,10) !== iso)
       return {err:`${date[0]}월 ${date[1]}일은 없는 날짜입니다.`};
   }
-
-  // 시각
-  let time = "";
-  const tm = eat(/(오전|오후|아침|저녁)?\s*(\d{1,2}\s*:\s*\d{2}|\d{1,2}\s*시(\s*\d{1,2}\s*분|\s*반)?)/);
-  if (tm){ try { time = checkTime(tm[0]); } catch (e) { return {err:e.message}; } }
-  eat(/(오전|오후|아침|저녁)/);   // 시각 없이 "오후" 만 있으면 버린다
 
   // 사람 — 명단에 있는 이름만
   const member = (DATA.members || []).filter(n => s.includes(n));
